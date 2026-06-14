@@ -62,6 +62,18 @@ DB_PASSWORD=secret
 
 その後 `php artisan migrate --seed` を実行。
 
+## 🌐 公開デプロイ（無料運用）
+
+自分のPCだけでなく、インターネットに公開して身内で使うには **[deploy/DEPLOY.md](deploy/DEPLOY.md)** を参照。
+XServer VPS の無料体験 + no-ip の無料ドメイン + Let's Encrypt の無料SSL で **HTTPS 公開** する手順と、
+サーバー構築スクリプト（`deploy/setup-server.sh` / `deploy/deploy-app.sh` / `deploy/nginx-portal.conf`）を同梱しています。
+
+```bash
+# サーバー(Ubuntu)上で:
+sudo bash deploy/setup-server.sh    # nginx + PHP8.3 + Composer + certbot
+sudo bash deploy/deploy-app.sh main # 取得 → composer → migrate → 最適化
+```
+
 ## 🔗 外部連携
 
 `.env` にキーを設定すると有効になります（任意）。
