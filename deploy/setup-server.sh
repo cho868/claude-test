@@ -13,7 +13,7 @@ fi
 
 echo "==> パッケージ更新 & 基本ツール"
 apt-get update -y
-apt-get install -y software-properties-common ca-certificates curl unzip git
+apt-get install -y software-properties-common ca-certificates curl unzip git jq
 
 echo "==> PHP 8.3 リポジトリ(ondrej)"
 add-apt-repository -y ppa:ondrej/php

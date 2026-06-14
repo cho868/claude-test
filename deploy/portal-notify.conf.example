@@ -1,0 +1,20 @@
+# /etc/portal-notify.conf へコピーして編集する。
+#   sudo cp deploy/portal-notify.conf.example /etc/portal-notify.conf
+#   sudo nano /etc/portal-notify.conf
+# notify.sh がこのファイルを読み込みます。
+
+# Discord の Webhook URL（チャンネル設定 → 連携サービス → ウェブフック で作成）
+DISCORD_WEBHOOK="https://discord.com/api/webhooks/xxxxxxxx/xxxxxxxx"
+
+# 体験終了日（分かれば YYYY-MM-DD。空でも可。分かり次第ここに記入）
+TRIAL_END=""
+
+# 認証間隔（日）: 2GBプラン=4 / 4GBプラン=2
+REAUTH_INTERVAL_DAYS="4"
+
+# healthchecks.io の ping URL（無料登録 → Check 作成で取得。死活監視。任意）
+HEALTHCHECK_URL=""
+
+# 表示名と公開URL（任意）
+HOST_LABEL="身内ポータル"
+SITE_URL="https://example.ddns.net"
