@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #
-# XServer VPS など Ubuntu サーバーの初期セットアップ。
-# nginx + PHP 8.3(php-fpm) + Composer + certbot + ufw を入れる。
+# Ubuntu サーバーの初期セットアップ（Ubuntu 26.04 LTS で動作確認）。
+# ディストリ標準の PHP（26.04 なら 8.5 系。Laravel 13 は 8.3+ でOK）を使うので
+# third-party リポジトリ不要。nginx の site 設定まで自動生成する。
+#
 # 使い方:  sudo bash deploy/setup-server.sh
 #
 set -euo pipefail
@@ -11,18 +13,22 @@ if [ "$(id -u)" -ne 0 ]; then
   echo "root で実行してください（sudo bash deploy/setup-server.sh）"; exit 1
 fi
 
+APP_DIR=/var/www/portal
+
 echo "==> パッケージ更新 & 基本ツール"
 apt-get update -y
-apt-get install -y software-properties-common ca-certificates curl unzip git jq
+apt-get install -y ca-certificates curl unzip git jq
 
-echo "==> PHP 8.3 リポジトリ(ondrej)"
-add-apt-repository -y ppa:ondrej/php
-apt-get update -y
-
-echo "==> nginx / PHP 8.3 / 拡張をインストール"
+echo "==> nginx / PHP（ディストリ標準）/ 拡張をインストール"
+# バージョン無しのメタパッケージにすることで、Ubuntu のバージョンに依らず標準PHPが入る
 apt-get install -y nginx \
-  php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl \
-  php8.3-sqlite3 php8.3-bcmath php8.3-zip php8.3-intl php8.3-gd php8.3-mysql
+  php-fpm php-cli php-mbstring php-xml php-curl \
+  php-sqlite3 php-bcmath php-zip php-intl php-gd php-mysql
+
+# 実際に入った PHP バージョンと FPM ソケットを検出
+PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
+PHP_SOCK="/run/php/php${PHP_VER}-fpm.sock"
+echo "==> 検出した PHP: ${PHP_VER}  (socket: ${PHP_SOCK})"
 
 echo "==> Composer"
 if ! command -v composer >/dev/null 2>&1; then
@@ -31,15 +37,53 @@ if ! command -v composer >/dev/null 2>&1; then
   rm -f /tmp/composer-setup.php
 fi
 
-echo "==> certbot(無料SSL)"
+echo "==> certbot（無料SSL）"
 apt-get install -y certbot python3-certbot-nginx
 
-echo "==> ファイアウォール(ufw)"
-ufw allow OpenSSH || true
-ufw allow 'Nginx Full' || true
+echo "==> nginx の site 設定を自動生成（server_name は後で certbot/ドメインに合わせて変更可）"
+cat > /etc/nginx/sites-available/portal <<NGINX
+server {
+    listen 80;
+    listen [::]:80;
+    server_name _;
+
+    root ${APP_DIR}/public;
+    index index.php;
+    charset utf-8;
+    client_max_body_size 20M;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    error_page 404 /index.php;
+
+    location ~ \.php\$ {
+        fastcgi_pass unix:${PHP_SOCK};
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* { deny all; }
+}
+NGINX
+
+ln -sf /etc/nginx/sites-available/portal /etc/nginx/sites-enabled/portal
+rm -f /etc/nginx/sites-enabled/default
+
+echo "==> ファイアウォール(ufw): SSH を先に許可してから有効化"
+ufw allow 22/tcp || true
+ufw allow 80/tcp || true
+ufw allow 443/tcp || true
 yes | ufw enable || true
 
-systemctl enable --now php8.3-fpm nginx
+systemctl enable --now "php${PHP_VER}-fpm" nginx
+nginx -t && systemctl reload nginx
 
-echo "==> 完了。次は deploy/deploy-app.sh を実行してください。"
-php8.3 -v | head -1
+echo ""
+echo "==> 完了。PHP ${PHP_VER} / nginx 準備OK。"
+echo "    次は: sudo bash deploy/deploy-app.sh main"
+echo "    ※ XServer VPS の『パケットフィルター(Web管理画面)』でも 22/80/443 を開けてください。"

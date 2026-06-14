@@ -69,10 +69,12 @@ XServer VPS の無料体験 + no-ip の無料ドメイン + Let's Encrypt の無
 サーバー構築スクリプト（`deploy/setup-server.sh` / `deploy/deploy-app.sh` / `deploy/nginx-portal.conf`）を同梱しています。
 
 ```bash
-# サーバー(Ubuntu)上で:
-sudo bash deploy/setup-server.sh    # nginx + PHP8.3 + Composer + certbot
+# サーバー(Ubuntu 26.04 等)上で:
+sudo bash deploy/setup-server.sh    # nginx + PHP(標準) + Composer + certbot + nginx設定 を自動構築
 sudo bash deploy/deploy-app.sh main # 取得 → composer → migrate → 最適化
 ```
+
+再構築・トラブルシュート・通知設定まで含めた完全手順は **[deploy/DEPLOY.md](deploy/DEPLOY.md)** と **[deploy/NOTIFY.md](deploy/NOTIFY.md)** にまとめてあります（そのまま Qiita / Zenn 記事に転用可）。
 
 ## 🔗 外部連携
 
