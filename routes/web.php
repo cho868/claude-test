@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\GameSessionController;
 use App\Http\Controllers\MemoController;
 use App\Http\Controllers\ProfileController;
@@ -41,6 +42,9 @@ Route::middleware('auth')->group(function () {
     // プロフィール(Discord / Steam 連携 ID 登録)
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    // 資料 / ナレッジ(Markdown 記事)
+    Route::resource('documents', DocumentController::class);
 
     // トーナメント作成ツール
     Route::resource('tournaments', TournamentController::class)

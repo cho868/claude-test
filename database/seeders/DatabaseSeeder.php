@@ -12,14 +12,19 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        // 称号マスタを投入
+        // 称号マスタを投入（常に）
         $this->call(TitleSeeder::class);
 
-        // 開発用の管理者アカウント
-        User::factory()->create([
-            'name' => '管理人',
-            'email' => 'admin@example.com',
-            'is_admin' => true,
-        ]);
+        // 開発用の管理者アカウントはローカルのみ（本番では最初の登録者が管理者になる）
+        if (app()->environment('local')) {
+            User::firstOrCreate(
+                ['email' => 'admin@example.com'],
+                ['name' => '管理人', 'password' => 'password', 'is_admin' => true],
+            );
+        }
+
+        // 初期資料（ユーザーがいれば投入。本番は登録後に
+        //   php artisan db:seed --class=Database\\Seeders\\DocumentSeeder で追加可）
+        $this->call(DocumentSeeder::class);
     }
 }

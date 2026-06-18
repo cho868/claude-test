@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', '身内ポータル') | {{ config('app.name') }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <style>[x-cloak]{display:none}</style>
 </head>
 <body class="h-full bg-slate-100 text-slate-800">
@@ -27,6 +27,7 @@
                                 'games.index'       => ['🎮', 'ゲーム時間'],
                                 'surveys.index'     => ['🗳️', 'アンケート'],
                                 'schedule.index'    => ['📅', '予定'],
+                                'documents.index'   => ['📚', '資料'],
                             ];
                         @endphp
                         @foreach ($nav as $route => [$icon, $label])

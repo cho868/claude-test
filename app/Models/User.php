@@ -82,6 +82,11 @@ class User extends Authenticatable
         return $this->hasMany(ScheduleEvent::class);
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
     /**
      * 現在のポイントで到達できる最高位の称号。
      */
