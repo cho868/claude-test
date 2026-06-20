@@ -17,7 +17,7 @@ APP_DIR=/var/www/portal
 
 echo "==> パッケージ更新 & 基本ツール"
 apt-get update -y
-apt-get install -y ca-certificates curl unzip git jq micro
+apt-get install -y ca-certificates curl unzip git jq vim
 
 echo "==> nginx / PHP（ディストリ標準）/ 拡張をインストール"
 # バージョン無しのメタパッケージにすることで、Ubuntu のバージョンに依らず標準PHPが入る
@@ -30,9 +30,9 @@ PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
 PHP_SOCK="/run/php/php${PHP_VER}-fpm.sock"
 echo "==> 検出した PHP: ${PHP_VER}  (socket: ${PHP_SOCK})"
 
-echo "==> 既定エディタを micro に（crontab -e 等で使われる）"
-update-alternatives --install /usr/bin/editor editor /usr/bin/micro 100 >/dev/null 2>&1 || true
-update-alternatives --set editor /usr/bin/micro >/dev/null 2>&1 || true
+echo "==> 既定エディタを vim に（crontab -e 等で使われる）"
+update-alternatives --install /usr/bin/editor editor /usr/bin/vim.basic 100 >/dev/null 2>&1 || true
+update-alternatives --set editor /usr/bin/vim.basic >/dev/null 2>&1 || true
 
 echo "==> Composer"
 if ! command -v composer >/dev/null 2>&1; then
