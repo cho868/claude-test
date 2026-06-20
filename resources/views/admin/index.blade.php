@@ -4,8 +4,34 @@
 @section('content')
 <div class="mb-4 flex items-center justify-between">
     <h2 class="text-2xl font-bold">🛠️ 管理ダッシュボード</h2>
-    <a href="{{ route('admin.users') }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">👥 ユーザー管理</a>
+    <div class="flex gap-2">
+        <a href="{{ route('admin.server') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold hover:bg-slate-200">🖥️ サーバー状況</a>
+        <a href="{{ route('admin.users') }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">👥 ユーザー管理</a>
+    </div>
 </div>
+
+{{-- サーバーリソース概要 --}}
+@php $barColor = fn ($p) => $p >= 90 ? 'bg-rose-500' : ($p >= 70 ? 'bg-amber-500' : 'bg-emerald-500'); @endphp
+<a href="{{ route('admin.server') }}" class="mb-6 block rounded-2xl bg-white p-5 shadow-sm hover:shadow-md">
+    <div class="grid gap-5 sm:grid-cols-2">
+        @foreach (['disk' => ['💽','ディスク'], 'memory' => ['🧠','メモリ']] as $k => [$icon, $label])
+            <div>
+                <div class="mb-1 flex justify-between text-sm">
+                    <span class="font-semibold">{{ $icon }} {{ $label }}</span>
+                    @if ($server[$k])
+                        <span class="text-slate-500">{{ \App\Services\ServerStats::human($server[$k]['used']) }} / {{ \App\Services\ServerStats::human($server[$k]['total']) }}（{{ $server[$k]['percent'] }}%）</span>
+                    @else
+                        <span class="text-slate-400">取得不可</span>
+                    @endif
+                </div>
+                <div class="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div class="h-full rounded-full {{ $server[$k] ? $barColor($server[$k]['percent']) : 'bg-slate-300' }}" style="width: {{ $server[$k]['percent'] ?? 0 }}%"></div>
+                </div>
+            </div>
+        @endforeach
+    </div>
+    <p class="mt-3 text-right text-xs text-slate-400">詳しいサーバー状況を見る →</p>
+</a>
 
 {{-- 統計 --}}
 <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
     // 管理者エリア
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
+        Route::get('server', [AdminController::class, 'server'])->name('server');
         Route::post('tasks/{task}/toggle', [AdminController::class, 'toggleTask'])->name('tasks.toggle');
         Route::get('users', [AdminController::class, 'users'])->name('users');
         Route::post('users/{user}/toggle-admin', [AdminController::class, 'toggleAdmin'])->name('users.toggle-admin');

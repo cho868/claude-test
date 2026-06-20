@@ -8,15 +8,21 @@ use App\Models\ScheduleEvent;
 use App\Models\SetupTask;
 use App\Models\Survey;
 use App\Models\User;
+use App\Services\ServerStats;
 use Illuminate\Http\Request;
 
 class AdminController extends Controller
 {
-    public function index()
+    public function index(ServerStats $serverStats)
     {
         $tasks = SetupTask::orderBy('sort_order')->get()->groupBy('category');
         $taskDone = SetupTask::where('done', true)->count();
         $taskTotal = SetupTask::count();
+
+        $server = [
+            'disk' => $serverStats->disk(),
+            'memory' => $serverStats->memory(),
+        ];
 
         $stats = [
             'users' => User::count(),
@@ -27,7 +33,7 @@ class AdminController extends Controller
             'game_minutes' => (int) GameSession::sum('minutes'),
         ];
 
-        return view('admin.index', compact('tasks', 'taskDone', 'taskTotal', 'stats'));
+        return view('admin.index', compact('tasks', 'taskDone', 'taskTotal', 'stats', 'server'));
     }
 
     public function toggleTask(SetupTask $task)
@@ -35,6 +41,11 @@ class AdminController extends Controller
         $task->update(['done' => ! $task->done]);
 
         return back()->with('status', $task->title . ' を ' . ($task->done ? '完了' : '未完了') . ' にしました。');
+    }
+
+    public function server(ServerStats $stats)
+    {
+        return view('admin.server', ['s' => $stats->all()]);
     }
 
     public function users()
