@@ -75,7 +75,16 @@ sudo bash deploy/setup-server.sh    # nginx + PHP(標準) + Composer + certbot +
 sudo bash deploy/deploy-app.sh main # 取得 → composer → migrate → 最適化
 ```
 
-再構築・トラブルシュート・通知設定まで含めた完全手順は **[deploy/DEPLOY.md](deploy/DEPLOY.md)** と **[deploy/NOTIFY.md](deploy/NOTIFY.md)** にまとめてあります（そのまま Qiita / Zenn 記事に転用可）。
+再構築・トラブルシュート・通知・セキュリティまで含めた完全手順は以下にまとめてあります（そのまま Qiita / Zenn 記事や、ポータル内「📚資料」に転用可）。
+
+- **[deploy/DEPLOY.md](deploy/DEPLOY.md)** … 構築・再構築・更新・トラブルシュート
+- **[deploy/NOTIFY.md](deploy/NOTIFY.md)** … 通知・死活監視（no-ip / Let's Encrypt / XServer の期限を毎日Discord通知）
+- **[deploy/SECURITY.md](deploy/SECURITY.md)** … セキュリティ懸念・対策・監視。`deploy/harden-server.sh` で fail2ban / 自動更新 / セキュリティヘッダを導入
+
+セキュリティ補足:
+- 新規登録は `REGISTRATION_INVITE_CODE` を設定すると招待コード必須（野良登録を防止）
+- ログイン/登録はレート制限（1分6回）でブルートフォース対策
+- 資料の Markdown は生HTML除去で XSS 対策、本番は `APP_DEBUG=false`
 
 ## 🔗 外部連携
 

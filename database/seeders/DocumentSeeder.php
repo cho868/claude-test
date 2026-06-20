@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Document;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
 
 class DocumentSeeder extends Seeder
 {
@@ -16,7 +17,45 @@ class DocumentSeeder extends Seeder
             return; // ユーザーがいなければスキップ
         }
 
-        $sshGuide = <<<'MD'
+        // インラインの SSH ガイド
+        Document::updateOrCreate(
+            ['title' => 'VPSへのSSH接続・鍵認証・ユーザー作成'],
+            [
+                'user_id' => $author->id,
+                'category' => 'サーバー',
+                'body' => $this->sshGuide(),
+                'is_public' => true,
+            ],
+        );
+
+        // deploy/*.md をそのまま資料として取り込む（構築・通知・セキュリティの蓄積ナレッジ）
+        $docs = [
+            'deploy/DEPLOY.md'   => ['身内ポータル 構築・再構築 手順書', 'サーバー'],
+            'deploy/NOTIFY.md'   => ['通知と死活監視（no-ip / SSL / XServer）の設定', '運用'],
+            'deploy/SECURITY.md' => ['セキュリティ：懸念点・対策・監視', 'セキュリティ'],
+        ];
+
+        foreach ($docs as $path => [$title, $category]) {
+            $full = base_path($path);
+            if (! File::exists($full)) {
+                continue;
+            }
+
+            Document::updateOrCreate(
+                ['title' => $title],
+                [
+                    'user_id' => $author->id,
+                    'category' => $category,
+                    'body' => File::get($full),
+                    'is_public' => true,
+                ],
+            );
+        }
+    }
+
+    private function sshGuide(): string
+    {
+        return <<<'MD'
 身内ポータルを動かしている **XServer VPS** に SSH 接続する方法と、鍵認証・ユーザー作成の手順をまとめます。
 新メンバーはまずこれを読んでください。
 
@@ -40,25 +79,16 @@ Host xserver-portal
 
 ```bash
 ssh-keygen -t ed25519
-# 保存先は Enter（~/.ssh/id_ed25519）、パスフレーズは任意
-```
-
-公開鍵（`~/.ssh/id_ed25519.pub`）の中身を管理者に渡すと、サーバーに登録してもらえます。
-
-```bash
-cat ~/.ssh/id_ed25519.pub      # この1行を渡す
+# 保存先は Enter（~/.ssh/id_ed25519）、パスフレーズは任意（付けると安全）
+cat ~/.ssh/id_ed25519.pub      # この1行を管理者に渡す（公開鍵）
 ```
 
 ## 3. パスワード接続から鍵接続へ切り替える
 
-パスワードでログインできる状態なら、サーバーを作り直さずに鍵を追加できます。
-
 ```bash
-# 手元のPCから（Mac/Linux/Git Bash）
-ssh-copy-id taro@203.0.113.45
+ssh-copy-id taro@203.0.113.45        # Mac/Linux/Git Bash
 ```
-
-`ssh-copy-id` が無ければ、サーバー側で手動登録：
+手動なら、サーバー側で：
 
 ```bash
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
@@ -66,22 +96,18 @@ echo "ssh-ed25519 AAAA... 公開鍵 ..." >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 ```
 
-## 4. 新しいユーザーを作る（管理者作業）
-
-root で実行します。
+## 4. 新しいユーザーを作る（管理者作業 / root で）
 
 ```bash
-adduser taro                 # パスワードを設定
-usermod -aG sudo taro        # sudo 権限を付与
-
-# 各自の公開鍵を登録
+adduser taro
+usermod -aG sudo taro
 mkdir -p /home/taro/.ssh
 echo "ssh-ed25519 AAAA... 本人の公開鍵 ..." > /home/taro/.ssh/authorized_keys
 chown -R taro:taro /home/taro/.ssh
 chmod 700 /home/taro/.ssh && chmod 600 /home/taro/.ssh/authorized_keys
 ```
 
-## 5. （任意）セキュリティ強化
+## 5. （重要）セキュリティ強化
 
 鍵ログインを確認してから、root 直ログインとパスワード認証を無効化：
 
@@ -92,20 +118,7 @@ sudo systemctl restart ssh
 ```
 
 > 🛟 締め出されても XServer VPS の管理画面コンソール（VNC）から復旧できます。
-
----
-
-サーバー構築そのものの手順はリポジトリの `deploy/DEPLOY.md`、通知設定は `deploy/NOTIFY.md` を参照してください。
+> 詳しい構築は資料「身内ポータル 構築・再構築 手順書」、守りは「セキュリティ：懸念点・対策・監視」を参照。
 MD;
-
-        Document::updateOrCreate(
-            ['title' => 'VPSへのSSH接続・鍵認証・ユーザー作成'],
-            [
-                'user_id' => $author->id,
-                'category' => 'サーバー',
-                'body' => $sshGuide,
-                'is_public' => true,
-            ],
-        );
     }
 }

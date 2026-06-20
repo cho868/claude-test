@@ -19,6 +19,21 @@ class RegisteredUserController extends Controller
 
     public function store(Request $request, PointService $points)
     {
+        // 招待コードが設定されている場合は一致を必須にする(身内以外の登録を防ぐ)
+        $inviteCode = config('portal.invite_code');
+        if (! empty($inviteCode)) {
+            $request->validate(
+                ['invite_code' => ['required', 'string']],
+                ['invite_code.required' => '招待コードを入力してください。'],
+            );
+
+            if (! hash_equals((string) $inviteCode, (string) $request->input('invite_code'))) {
+                return back()
+                    ->withInput($request->except('password', 'password_confirmation'))
+                    ->withErrors(['invite_code' => '招待コードが正しくありません。']);
+            }
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],

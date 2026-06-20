@@ -6,15 +6,21 @@
 # Discord の Webhook URL（チャンネル設定 → 連携サービス → ウェブフック で作成）
 DISCORD_WEBHOOK="https://discord.com/api/webhooks/xxxxxxxx/xxxxxxxx"
 
+# 公開ドメイン（SSL証明書の残り日数チェックに使用）
+DOMAIN="madgear.sytes.net"
+SITE_URL="https://madgear.sytes.net"
+
 # 体験終了日（分かれば YYYY-MM-DD。空でも可。分かり次第ここに記入）
 TRIAL_END=""
 
 # 認証間隔（日）: 2GBプラン=4 / 4GBプラン=2
 REAUTH_INTERVAL_DAYS="4"
 
+# no-ip を最後に確認した日（YYYY-MM-DD）。確認するたびに更新すると残り日数を計算します
+NOIP_LAST_CONFIRMED=""
+
 # healthchecks.io の ping URL（無料登録 → Check 作成で取得。死活監視。任意）
 HEALTHCHECK_URL=""
 
-# 表示名と公開URL（任意）
+# 通知に出す名前
 HOST_LABEL="身内ポータル"
-SITE_URL="https://example.ddns.net"

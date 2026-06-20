@@ -40,7 +40,11 @@ fi
 echo "==> certbot（無料SSL）"
 apt-get install -y certbot python3-certbot-nginx
 
-echo "==> nginx の site 設定を自動生成（server_name は後で certbot/ドメインに合わせて変更可）"
+echo "==> nginx の site 設定"
+if [ -f /etc/nginx/sites-available/portal ]; then
+  echo "    既存設定を検出したため上書きしません（certbot のSSL設定などを保持）。"
+else
+  echo "    新規に site 設定を生成します。"
 cat > /etc/nginx/sites-available/portal <<NGINX
 server {
     listen 80;
@@ -71,8 +75,9 @@ server {
 }
 NGINX
 
-ln -sf /etc/nginx/sites-available/portal /etc/nginx/sites-enabled/portal
-rm -f /etc/nginx/sites-enabled/default
+  ln -sf /etc/nginx/sites-available/portal /etc/nginx/sites-enabled/portal
+  rm -f /etc/nginx/sites-enabled/default
+fi
 
 echo "==> ファイアウォール(ufw): SSH を先に許可してから有効化"
 ufw allow 22/tcp || true

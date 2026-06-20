@@ -105,4 +105,28 @@ class PortalTest extends TestCase
         $this->get('/dashboard')->assertRedirect(route('login'));
         $this->get('/')->assertRedirect(route('login'));
     }
+
+    public function test_registration_requires_invite_code_when_configured(): void
+    {
+        config(['portal.invite_code' => 'secret123']);
+
+        // コード無し → 失敗（登録されない）
+        $this->post('/register', [
+            'name' => 'よそ者',
+            'email' => 'stranger@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertSessionHasErrors('invite_code');
+        $this->assertDatabaseMissing('users', ['email' => 'stranger@example.com']);
+
+        // 正しいコード → 登録成功
+        $this->post('/register', [
+            'name' => '身内',
+            'email' => 'member@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'invite_code' => 'secret123',
+        ])->assertRedirect(route('dashboard'));
+        $this->assertDatabaseHas('users', ['email' => 'member@example.com']);
+    }
 }

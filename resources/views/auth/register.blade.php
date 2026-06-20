@@ -25,6 +25,14 @@
             <input type="password" name="password_confirmation" required
                    class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
         </div>
+        @if (! empty(config('portal.invite_code')))
+            <div>
+                <label class="block text-sm font-medium text-slate-700">招待コード</label>
+                <input type="text" name="invite_code" value="{{ old('invite_code') }}" required
+                       class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                <p class="mt-1 text-xs text-slate-500">身内から共有された招待コードを入力してください。</p>
+            </div>
+        @endif
         <button class="w-full rounded-lg bg-slate-900 py-2.5 font-semibold text-white hover:bg-slate-700">
             登録してはじめる
         </button>
