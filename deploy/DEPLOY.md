@@ -90,7 +90,7 @@ sudo bash deploy/deploy-app.sh main
 
 `.env` を編集（後でURL確定後でもOK）:
 ```bash
-sudo nano /var/www/portal/.env      # APP_URL を後でドメインに
+sudo micro /var/www/portal/.env      # APP_URL を後でドメインに
 ```
 
 ## 6. 動作確認（IP直打ち）
@@ -115,7 +115,7 @@ sudo certbot --nginx -d myportal.ddns.net
 ```
 `.env` を本番向けに:
 ```bash
-sudo nano /var/www/portal/.env
+sudo micro /var/www/portal/.env
 #   APP_URL=https://myportal.ddns.net
 #   SESSION_SECURE_COOKIE=true
 sudo -u www-data php /var/www/portal/artisan config:cache

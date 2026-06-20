@@ -5,7 +5,7 @@
 #
 # 使い方:
 #   1) 設定ファイルを作成:  sudo cp deploy/portal-notify.conf.example /etc/portal-notify.conf
-#                          sudo nano /etc/portal-notify.conf   （Webhook等を記入）
+#                          sudo micro /etc/portal-notify.conf   （Webhook等を記入）
 #   2) cron に登録（毎朝9時の例）:
 #        sudo crontab -e
 #        0 9 * * * /var/www/portal/deploy/notify.sh

@@ -1,6 +1,6 @@
 # /etc/portal-notify.conf へコピーして編集する。
 #   sudo cp deploy/portal-notify.conf.example /etc/portal-notify.conf
-#   sudo nano /etc/portal-notify.conf
+#   sudo micro /etc/portal-notify.conf
 # notify.sh がこのファイルを読み込みます。
 
 # Discord の Webhook URL（チャンネル設定 → 連携サービス → ウェブフック で作成）
