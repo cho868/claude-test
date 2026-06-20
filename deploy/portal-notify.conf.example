@@ -24,3 +24,6 @@ HEALTHCHECK_URL=""
 
 # 通知に出す名前
 HOST_LABEL="身内ポータル"
+
+# LINE 通知（任意）: Messaging API のチャネルアクセストークン。Botを友だち追加した人全員に届く
+LINE_TOKEN=""

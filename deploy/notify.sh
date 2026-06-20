@@ -21,18 +21,27 @@ HOST_LABEL="身内ポータル"           # 通知に出す名前
 SITE_URL=""                        # 公開URL（任意・通知に添える）
 DOMAIN=""                          # 証明書チェック用ドメイン（例 madgear.sytes.net）
 NOIP_LAST_CONFIRMED=""             # no-ip を最後に確認した日 YYYY-MM-DD（無料は約30日ごと確認）
+LINE_TOKEN=""                      # LINE Messaging API のチャネルアクセストークン（任意）
 
 [ -f /etc/portal-notify.conf ] && . /etc/portal-notify.conf
 
 # ===== Discord 送信 =====
 send_discord() {
   local msg="$1"
-  if [ -z "$DISCORD_WEBHOOK" ]; then
-    echo "[notify] DISCORD_WEBHOOK が未設定です"; return 0
-  fi
+  [ -z "$DISCORD_WEBHOOK" ] && return 0
   curl -fsS -m 15 -H "Content-Type: application/json" \
     -d "$(jq -nc --arg c "$msg" '{content:$c}')" \
-    "$DISCORD_WEBHOOK" >/dev/null
+    "$DISCORD_WEBHOOK" >/dev/null || echo "[notify] Discord送信失敗"
+}
+
+# ===== LINE 送信（Messaging API の broadcast。Botを友だち追加した全員に届く）=====
+send_line() {
+  local msg="$1"
+  [ -z "$LINE_TOKEN" ] && return 0
+  curl -fsS -m 15 -X POST https://api.line.me/v2/bot/message/broadcast \
+    -H "Authorization: Bearer ${LINE_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -nc --arg t "$msg" '{messages:[{type:"text",text:$t}]}')" >/dev/null || echo "[notify] LINE送信失敗"
 }
 
 # ===== サーバーの状態 =====
@@ -101,6 +110,7 @@ MSG="${MSG}
 🔗 ${SITE_URL}"
 
 send_discord "$MSG"
+send_line "$MSG"
 
 # ===== 死活監視 ping（このスクリプトが動いた＝サーバー生存）=====
 # 一定時間 ping が来ないと healthchecks.io 側から「落ちた」通知が飛ぶ。

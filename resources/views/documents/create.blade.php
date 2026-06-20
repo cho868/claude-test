@@ -40,11 +40,18 @@
             <p class="mt-1 text-xs text-slate-400">Markdown 対応(見出し #、リスト -、コード ```、リンク [text](url) など)。安全のため生HTMLは除去されます。</p>
         </div>
 
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="is_public" value="1" class="rounded border-slate-300"
-                {{ old('is_public', $editing ? $document->is_public : true) ? 'checked' : '' }}>
-            身内に公開する
-        </label>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">公開範囲</label>
+            @php $vis = old('visibility', $editing ? $document->visibility : 'members'); @endphp
+            <select name="visibility" class="mt-1 w-full rounded-lg border-slate-300 shadow-sm sm:w-64">
+                <option value="members" @selected($vis === 'members')>身内に公開（ログインユーザー全員）</option>
+                <option value="private" @selected($vis === 'private')>自分のみ</option>
+                @if (auth()->user()->is_admin)
+                    <option value="admin" @selected($vis === 'admin')>管理者のみ（サーバー/機密情報向け）</option>
+                @endif
+            </select>
+            <p class="mt-1 text-xs text-slate-400">サーバー手順やセキュリティなど機密性の高い資料は「管理者のみ」に。</p>
+        </div>
 
         <div class="flex gap-2">
             <button class="rounded-lg bg-slate-900 px-5 py-2.5 font-semibold text-white hover:bg-slate-700">{{ $editing ? '更新' : '公開する' }}</button>

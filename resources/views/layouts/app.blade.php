@@ -36,6 +36,12 @@
                                 {{ $icon }} {{ $label }}
                             </a>
                         @endforeach
+                        @if (auth()->user()?->is_admin)
+                            <a href="{{ route('admin.index') }}"
+                               class="rounded px-3 py-1.5 text-amber-300 hover:bg-slate-700 {{ request()->routeIs('admin.*') ? 'bg-slate-700' : '' }}">
+                                🛠️ 管理
+                            </a>
+                        @endif
                     </div>
                 </div>
                 <div class="flex items-center gap-3">

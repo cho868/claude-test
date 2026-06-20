@@ -15,7 +15,8 @@
             <h1 class="mt-1.5 text-3xl font-bold">{{ $document->title }}</h1>
             <p class="mt-1 text-sm text-slate-400">
                 {{ $document->user->name }} ・ {{ $document->updated_at->format('Y/n/j H:i') }} ・ 👁 {{ $document->views }}
-                @unless ($document->is_public)<span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">非公開</span>@endunless
+                @if ($document->visibility === 'admin')<span class="ml-1 rounded-full bg-rose-100 px-2 py-0.5 text-rose-700">🔒 管理者のみ</span>
+                @elseif ($document->visibility === 'private')<span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">自分のみ</span>@endif
             </p>
         </div>
         @if ($isOwner)

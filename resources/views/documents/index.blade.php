@@ -24,7 +24,11 @@
         <a href="{{ route('documents.show', $doc) }}" class="block rounded-2xl bg-white p-5 shadow-sm hover:shadow-md">
             <div class="flex items-center gap-2">
                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ $doc->category }}</span>
-                @unless ($doc->is_public)<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">非公開</span>@endunless
+                @if ($doc->visibility === 'admin')
+                    <span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">🔒 管理者のみ</span>
+                @elseif ($doc->visibility === 'private')
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">自分のみ</span>
+                @endif
             </div>
             <h3 class="mt-1.5 text-lg font-bold">{{ $doc->title }}</h3>
             <p class="mt-1 text-sm text-slate-500">{{ $doc->excerpt() }}</p>

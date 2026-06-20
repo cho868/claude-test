@@ -106,6 +106,37 @@ class PortalTest extends TestCase
         $this->get('/')->assertRedirect(route('login'));
     }
 
+    public function test_admin_area_is_restricted_to_admins(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $member = User::factory()->create(['is_admin' => false]);
+
+        $this->actingAs($member)->get('/admin')->assertForbidden();
+        $this->actingAs($admin)->get('/admin')->assertOk();
+    }
+
+    public function test_admin_only_documents_are_hidden_from_members(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $member = User::factory()->create(['is_admin' => false]);
+
+        $doc = \App\Models\Document::create([
+            'user_id' => $admin->id,
+            'category' => 'サーバー',
+            'title' => '機密手順',
+            'body' => 'secret',
+            'is_public' => false,
+            'visibility' => 'admin',
+        ]);
+
+        // 一般ユーザーは一覧に出ず、直接アクセスも403
+        $this->actingAs($member)->get(route('documents.index'))->assertDontSee('機密手順');
+        $this->actingAs($member)->get(route('documents.show', $doc))->assertForbidden();
+
+        // 管理者は閲覧可
+        $this->actingAs($admin)->get(route('documents.show', $doc))->assertOk();
+    }
+
     public function test_registration_requires_invite_code_when_configured(): void
     {
         config(['portal.invite_code' => 'secret123']);

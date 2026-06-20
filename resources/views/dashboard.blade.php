@@ -52,6 +52,9 @@
                         ['documents.index', '📚', '資料/ナレッジ', '手順書をMarkdownで共有'],
                         ['profile.edit', '⚙️', 'プロフィール', 'Discord/Steam連携'],
                     ];
+                    if (auth()->user()->is_admin) {
+                        $tools[] = ['admin.index', '🛠️', '管理', 'チェックリスト/ユーザー管理'];
+                    }
                 @endphp
                 @foreach ($tools as [$route, $icon, $name, $desc])
                     <a href="{{ route($route) }}"

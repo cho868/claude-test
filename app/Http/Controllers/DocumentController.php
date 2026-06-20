@@ -12,8 +12,7 @@ class DocumentController extends Controller
     {
         $category = $request->query('category');
 
-        $query = Document::with('user')
-            ->where(fn ($q) => $q->where('is_public', true)->orWhere('user_id', auth()->id()));
+        $query = Document::with('user')->visibleTo($request->user());
 
         if ($category) {
             $query->where('category', $category);
@@ -21,9 +20,9 @@ class DocumentController extends Controller
 
         $documents = $query->latest()->paginate(15)->withQueryString();
 
-        // カテゴリ一覧（絞り込み用）
+        // カテゴリ一覧(閲覧可能な資料から)
         $categories = Document::query()
-            ->where('is_public', true)
+            ->visibleTo($request->user())
             ->select('category')
             ->distinct()
             ->orderBy('category')
@@ -42,18 +41,18 @@ class DocumentController extends Controller
         $data = $this->validateData($request);
 
         $document = $request->user()->documents()->create($data + [
-            'is_public' => $request->boolean('is_public'),
+            'is_public' => $data['visibility'] !== 'private',
         ]);
 
         $points->award($request->user(), 15, 'create_document', "資料「{$document->title}」作成");
 
         return redirect()->route('documents.show', $document)
-            ->with('status', '資料を公開しました(+15pt)');
+            ->with('status', '資料を保存しました(+15pt)');
     }
 
-    public function show(Document $document)
+    public function show(Request $request, Document $document)
     {
-        abort_unless($document->is_public || $document->user_id === auth()->id(), 403);
+        abort_unless($document->canBeViewedBy($request->user()), 403);
 
         $document->increment('views');
         $document->load('user');
@@ -71,9 +70,10 @@ class DocumentController extends Controller
     public function update(Request $request, Document $document)
     {
         $this->authorizeOwner($document);
+        $data = $this->validateData($request);
 
-        $document->update($this->validateData($request) + [
-            'is_public' => $request->boolean('is_public'),
+        $document->update($data + [
+            'is_public' => $data['visibility'] !== 'private',
         ]);
 
         return redirect()->route('documents.show', $document)->with('status', '資料を更新しました。');
@@ -89,11 +89,19 @@ class DocumentController extends Controller
 
     private function validateData(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'category' => ['required', 'string', 'max:50'],
             'title' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string'],
+            'visibility' => ['required', 'in:members,admin,private'],
         ]);
+
+        // 管理者のみ「管理者限定」を設定できる
+        if ($data['visibility'] === 'admin' && ! $request->user()->is_admin) {
+            $data['visibility'] = 'members';
+        }
+
+        return $data;
     }
 
     private function authorizeOwner(Document $document): void

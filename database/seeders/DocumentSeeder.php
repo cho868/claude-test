@@ -17,18 +17,19 @@ class DocumentSeeder extends Seeder
             return; // ユーザーがいなければスキップ
         }
 
-        // インラインの SSH ガイド
+        // インラインの SSH ガイド（サーバー機密 → 管理者のみ）
         Document::updateOrCreate(
             ['title' => 'VPSへのSSH接続・鍵認証・ユーザー作成'],
             [
                 'user_id' => $author->id,
                 'category' => 'サーバー',
                 'body' => $this->sshGuide(),
-                'is_public' => true,
+                'is_public' => false,
+                'visibility' => 'admin',
             ],
         );
 
-        // deploy/*.md をそのまま資料として取り込む（構築・通知・セキュリティの蓄積ナレッジ）
+        // deploy/*.md をそのまま資料として取り込む（いずれも機密性が高いので管理者のみ）
         $docs = [
             'deploy/DEPLOY.md'   => ['身内ポータル 構築・再構築 手順書', 'サーバー'],
             'deploy/NOTIFY.md'   => ['通知と死活監視（no-ip / SSL / XServer）の設定', '運用'],
@@ -47,7 +48,8 @@ class DocumentSeeder extends Seeder
                     'user_id' => $author->id,
                     'category' => $category,
                     'body' => File::get($full),
-                    'is_public' => true,
+                    'is_public' => false,
+                    'visibility' => 'admin',
                 ],
             );
         }

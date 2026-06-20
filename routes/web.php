@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
@@ -46,6 +47,14 @@ Route::middleware('auth')->group(function () {
 
     // 資料 / ナレッジ(Markdown 記事)
     Route::resource('documents', DocumentController::class);
+
+    // 管理者エリア
+    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', [AdminController::class, 'index'])->name('index');
+        Route::post('tasks/{task}/toggle', [AdminController::class, 'toggleTask'])->name('tasks.toggle');
+        Route::get('users', [AdminController::class, 'users'])->name('users');
+        Route::post('users/{user}/toggle-admin', [AdminController::class, 'toggleAdmin'])->name('users.toggle-admin');
+    });
 
     // トーナメント作成ツール
     Route::resource('tournaments', TournamentController::class)

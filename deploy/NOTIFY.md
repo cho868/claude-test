@@ -86,3 +86,49 @@ systemctl list-timers | grep certbot      # タイマーが動いているか
 sudo certbot renew --dry-run               # 更新テスト
 ```
 no-ip の無料ホスト名だけは **約30日ごとに確認メールのクリック**が必要なので、これも上記 Discord 通知の習慣でカバーできます（毎日見る場所に出る）。
+
+---
+
+## 付録：各種URL・トークンの「取り方」（詳細マニュアル）
+
+通知に必要な `DISCORD_WEBHOOK` / `HEALTHCHECK_URL` /（任意）`LINE_TOKEN` の取得手順です。
+`DOMAIN` は自分の公開ドメイン（例 `madgear.sytes.net`）をそのまま書けばOK。
+
+### A. Discord Webhook URL の取り方
+1. PC版/ブラウザ版の Discord で、通知を受けたい**サーバー**と**チャンネル**を用意（無ければ「+」でサーバー作成）
+2. そのチャンネルの右の **⚙（チャンネルの編集）** をクリック
+3. 左メニュー **「連携サービス（Integrations）」** → **「ウェブフック（Webhooks）」**
+4. **「新しいウェブフック」** → 名前/アイコンを設定（例: ポータル通知）
+5. **「ウェブフックURLをコピー」** → これが `DISCORD_WEBHOOK`
+   （`https://discord.com/api/webhooks/数字/英数字` の形）
+6. `/etc/portal-notify.conf` の `DISCORD_WEBHOOK="..."` に貼る
+   - 動作テスト: `sudo bash /var/www/portal/deploy/notify.sh` → チャンネルに投稿されれば成功
+
+> 📱 スマホに通知を出したいだけなら、これが一番簡単。Discordアプリの通知をONにしておけばOK。
+
+### B. healthchecks.io（死活監視）の Ping URL の取り方
+1. https://healthchecks.io/ に無料登録（Googleログイン可）
+2. **「Add Check」** で監視枠を作成 → 名前（例: portal-alive）
+3. **Schedule**: 「Simple」/ **Period = 1 day** / **Grace = 1 day**
+   （= 1日pingが来なかったら「落ちた」と判定して通知）
+4. 表示される **Ping URL**（`https://hc-ping.com/英数字`）をコピー → `HEALTHCHECK_URL`
+5. 落ちた時の通知先を増やす: **Integrations** タブ → **Discord** や **Email** を追加
+   （Discord連携を入れておくと、サーバーが死んだ瞬間に同じチャンネルへ警告が飛ぶ）
+6. `/etc/portal-notify.conf` の `HEALTHCHECK_URL="..."` に貼る
+
+> 仕組み: 毎日の `notify.sh` が最後にこのURLへ ping。**pingが途絶える＝サーバー停止**を healthchecks 側が検知して通知してくれる（＝こちらが気づかなくても向こうから教えてくれる）。
+
+### C. LINE 通知の出し方（任意・Messaging API）
+> ⚠️ 旧 **LINE Notify は 2025/3 で終了**。今は **Messaging API** を使います（少し手順多め）。Discordで足りるなら不要。
+
+1. **LINE Developers** にログイン: https://developers.line.biz/console/
+2. **プロバイダー**を作成（例: 身内ポータル）
+3. **「Messaging API」チャネル**を新規作成（チャネル名・アイコン等を入力）
+4. 作成後、**「Messaging API設定」タブ** → 下部の **「チャネルアクセストークン（長期）」** を **発行** → コピー
+   → これが `LINE_TOKEN`
+5. 同じ画面の **QRコード**から、通知を受け取りたい人が**Botを友だち追加**（追加した全員に届く＝broadcast）
+6. `/etc/portal-notify.conf` の `LINE_TOKEN="..."` に貼る
+   - `notify.sh` は `LINE_TOKEN` があれば Discord と**両方**に送ります（片方だけでもOK）
+   - 応答メッセージ等の自動返信が邪魔なら、4の画面で「応答メッセージ」をオフに
+
+> まとめ: **手軽さは Discord ＞ LINE**。まず Discord で運用し、LINEも欲しくなったら C を足す、で十分です。

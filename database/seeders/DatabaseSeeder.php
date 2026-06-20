@@ -12,8 +12,9 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        // 称号マスタを投入（常に）
+        // 称号マスタ・セットアップチェックリストを投入（常に）
         $this->call(TitleSeeder::class);
+        $this->call(SetupTaskSeeder::class);
 
         // 開発用の管理者アカウントはローカルのみ（本番では最初の登録者が管理者になる）
         if (app()->environment('local')) {
