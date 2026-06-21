@@ -1,15 +1,34 @@
 @extends('layouts.app')
-@php $editing = isset($tierList); @endphp
-@section('title', $editing ? 'Tierリスト編集' : 'Tierリスト作成')
+@php
+    $editing = isset($tierList);
+    $mode = $mode ?? 'ranking';                 // 'template' | 'ranking'
+    $initialPool = $initialPool ?? [];
+    $templateId = $templateId ?? null;
+    $templateTitle = $templateTitle ?? null;
+    $isTemplate = $mode === 'template';
+    $heading = $isTemplate
+        ? ($editing ? 'テンプレート編集' : 'Tierリスト テンプレート作成（項目のみ）')
+        : ($editing ? 'Tierリスト編集' : 'Tierリスト作成');
+@endphp
+@section('title', $heading)
 
 @section('content')
 <div class="mx-auto max-w-4xl">
-    <h2 class="mb-4 text-2xl font-bold">📊 {{ $editing ? 'Tierリスト編集' : 'Tierリスト作成' }}</h2>
+    <h2 class="mb-1 text-2xl font-bold">📊 {{ $heading }}</h2>
+    @if ($isTemplate)
+        <p class="mb-4 text-sm text-slate-500">項目だけ登録します（Tier分けは不要）。あとで「このテンプレで自分のランキングを作る」から各自がTier分けできます。</p>
+    @elseif ($templateTitle)
+        <p class="mb-4 text-sm text-slate-500">テンプレート「{{ $templateTitle }}」の項目を読み込みました。各ティアへドラッグして自分のランキングを作りましょう。</p>
+    @else
+        <p class="mb-4 text-sm text-slate-500">項目を各ティアへドラッグ。未分類のまま残してもそのまま保存されます。</p>
+    @endif
 
     <form method="POST" action="{{ $editing ? route('tierlists.update', $tierList) : route('tierlists.store') }}"
-          class="space-y-4 rounded-2xl bg-white p-6 shadow-sm" onsubmit="serializeTiers()">
+          class="space-y-4 rounded-2xl bg-white p-6 shadow-sm" onsubmit="serializeAll()">
         @csrf
         @if ($editing) @method('PUT') @endif
+        @if ($isTemplate)<input type="hidden" name="is_template" value="1">@endif
+        @if ($templateId)<input type="hidden" name="template_id" value="{{ $templateId }}">@endif
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div>
@@ -36,17 +55,19 @@
                           class="flex-1 rounded-lg border-slate-300 font-mono text-sm shadow-sm"></textarea>
                 <button type="button" onclick="addItems()" class="shrink-0 rounded-lg bg-slate-700 px-4 text-sm text-white hover:bg-slate-600">＋追加</button>
             </div>
-            <p class="mt-1 text-xs text-slate-400">Ctrl+Enter でも追加。各チップの「×」で削除、ドラッグで各ティアへ移動。</p>
+            <p class="mt-1 text-xs text-slate-400">Ctrl+Enter でも追加。各チップの「×」で削除@unless($isTemplate)、ドラッグで各ティアへ移動@endunless。</p>
 
-            <div id="tiers" class="mt-4 space-y-2"></div>
+            {{-- Tier 行（テンプレートモードでは隠す） --}}
+            <div id="tiers" class="mt-4 space-y-2 {{ $isTemplate ? 'hidden' : '' }}"></div>
 
             <div class="mt-4">
-                <p class="mb-1 text-xs font-bold text-slate-500">未分類(ここから各ティアへドラッグ)</p>
+                <p class="mb-1 text-xs font-bold text-slate-500">{{ $isTemplate ? '項目一覧' : '未分類(ここから各ティアへドラッグ／残してもOK)' }}</p>
                 <div id="pool" data-tier="pool" class="flex min-h-[48px] flex-wrap gap-2 rounded-lg border-2 border-dashed border-slate-300 p-2"></div>
             </div>
         </div>
 
         <input type="hidden" name="tiers" id="tiersInput">
+        <input type="hidden" name="pool" id="poolInput">
         <button class="rounded-lg bg-slate-900 px-5 py-2.5 font-semibold text-white hover:bg-slate-700">保存</button>
     </form>
 </div>
@@ -62,7 +83,8 @@
             ['label' => 'D', 'items' => []],
         ];
     @endphp
-    let initial = @json($initialTiers);
+    const initial = @json($initialTiers);
+    const INITIAL_POOL = @json($initialPool);
 
     const tiersEl = document.getElementById('tiers');
     const poolEl = document.getElementById('pool');
@@ -129,7 +151,8 @@
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addItems(); }
     });
 
-    function serializeTiers() {
+    function serializeAll() {
+        // Tier
         const result = [];
         tiersEl.querySelectorAll('[data-row]').forEach(row => {
             const label = row.querySelector('[data-role=label]').value || '?';
@@ -137,9 +160,13 @@
             result.push({ label, items });
         });
         document.getElementById('tiersInput').value = JSON.stringify(result);
+        // 未分類(pool)
+        const pool = [...poolEl.querySelectorAll('[data-chip]')].map(c => c.dataset.label);
+        document.getElementById('poolInput').value = JSON.stringify(pool);
     }
 
     makeDropZone(poolEl);
     buildTiers();
+    INITIAL_POOL.forEach(it => poolEl.appendChild(makeChip(it)));
 </script>
 @endsection
