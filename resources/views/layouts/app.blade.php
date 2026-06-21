@@ -27,6 +27,7 @@
                                 'games.index'       => ['🎮', 'ゲーム時間'],
                                 'surveys.index'     => ['🗳️', 'アンケート'],
                                 'schedule.index'    => ['📅', '予定'],
+                                'fitness.index'     => ['💪', 'フィットネス'],
                                 'documents.index'   => ['📚', '資料'],
                             ];
                         @endphp

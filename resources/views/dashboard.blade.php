@@ -49,6 +49,7 @@
                         ['games.index', '🎮', 'ゲーム時間', 'Steam連携 / 手動記録'],
                         ['surveys.index', '🗳️', 'アンケート', 'みんなで投票'],
                         ['schedule.index', '📅', 'スケジュール共有', '予定と出欠管理'],
+                        ['fitness.index', '💪', 'フィットネス', '体重・運動を記録して競う'],
                         ['documents.index', '📚', '資料/ナレッジ', '手順書をMarkdownで共有'],
                         ['profile.edit', '⚙️', 'プロフィール', 'Discord/Steam連携'],
                     ];

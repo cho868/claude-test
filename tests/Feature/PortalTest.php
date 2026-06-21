@@ -275,6 +275,52 @@ class PortalTest extends TestCase
         unset($m);
     }
 
+    public function test_weight_loss_challenge_ranks_by_loss_percent(): void
+    {
+        $a = User::factory()->create();
+        $b = User::factory()->create();
+
+        $challenge = \App\Models\Challenge::create([
+            'user_id' => $a->id,
+            'title' => '減量対決',
+            'metric' => 'weight_loss',
+            'starts_on' => '2026-06-01',
+            'ends_on' => '2026-06-30',
+        ]);
+        $challenge->participants()->attach([$a->id, $b->id]);
+
+        // A: 70 → 66.5kg(-5%) / B: 60 → 59.4kg(-1%)
+        \App\Models\WeightRecord::insert([
+            ['user_id' => $a->id, 'recorded_on' => '2026-06-02', 'weight_kg' => 70.0, 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => $a->id, 'recorded_on' => '2026-06-28', 'weight_kg' => 66.5, 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => $b->id, 'recorded_on' => '2026-06-02', 'weight_kg' => 60.0, 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => $b->id, 'recorded_on' => '2026-06-28', 'weight_kg' => 59.4, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $standings = $challenge->standings();
+        $this->assertSame($a->id, $standings->first()['user']->id, '減量率が高いAが1位');
+        $this->assertEqualsWithDelta(5.0, $standings->first()['value'], 0.01);
+    }
+
+    public function test_exercise_challenge_sums_minutes_in_period(): void
+    {
+        $u = User::factory()->create();
+        $challenge = \App\Models\Challenge::create([
+            'user_id' => $u->id, 'title' => '運動量', 'metric' => 'exercise_minutes',
+            'starts_on' => '2026-06-01', 'ends_on' => '2026-06-30',
+        ]);
+        $challenge->participants()->attach($u->id);
+
+        \App\Models\ExerciseRecord::insert([
+            ['user_id' => $u->id, 'recorded_on' => '2026-06-05', 'activity' => '走', 'minutes' => 30, 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => $u->id, 'recorded_on' => '2026-06-10', 'activity' => '走', 'minutes' => 45, 'created_at' => now(), 'updated_at' => now()],
+            // 期間外（集計されない）
+            ['user_id' => $u->id, 'recorded_on' => '2026-07-01', 'activity' => '走', 'minutes' => 99, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $this->assertSame(75.0, $challenge->standings()->first()['value']);
+    }
+
     public function test_registration_requires_invite_code_when_configured(): void
     {
         config(['portal.invite_code' => 'secret123']);

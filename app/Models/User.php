@@ -87,6 +87,21 @@ class User extends Authenticatable
         return $this->hasMany(Document::class);
     }
 
+    public function weightRecords(): HasMany
+    {
+        return $this->hasMany(WeightRecord::class);
+    }
+
+    public function exerciseRecords(): HasMany
+    {
+        return $this->hasMany(ExerciseRecord::class);
+    }
+
+    public function challenges(): HasMany
+    {
+        return $this->hasMany(Challenge::class);
+    }
+
     /**
      * 現在のポイントで到達できる最高位の称号。
      */

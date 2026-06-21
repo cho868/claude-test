@@ -3,7 +3,9 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FitnessController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\GameSessionController;
 use App\Http\Controllers\MemoController;
@@ -47,6 +49,18 @@ Route::middleware('auth')->group(function () {
 
     // 資料 / ナレッジ(Markdown 記事)
     Route::resource('documents', DocumentController::class);
+
+    // フィットネス(体重・運動の記録と可視化)
+    Route::get('fitness', [FitnessController::class, 'index'])->name('fitness.index');
+    Route::post('fitness/weight', [FitnessController::class, 'storeWeight'])->name('fitness.weight.store');
+    Route::post('fitness/exercise', [FitnessController::class, 'storeExercise'])->name('fitness.exercise.store');
+    Route::delete('fitness/weight/{weight}', [FitnessController::class, 'destroyWeight'])->name('fitness.weight.destroy');
+    Route::delete('fitness/exercise/{exercise}', [FitnessController::class, 'destroyExercise'])->name('fitness.exercise.destroy');
+
+    // チャレンジ(期間を決めて登録者と競う)
+    Route::resource('challenges', ChallengeController::class)->except(['edit', 'update']);
+    Route::post('challenges/{challenge}/join', [ChallengeController::class, 'join'])->name('challenges.join');
+    Route::post('challenges/{challenge}/leave', [ChallengeController::class, 'leave'])->name('challenges.leave');
 
     // 管理者エリア
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
