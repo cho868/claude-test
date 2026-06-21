@@ -1,10 +1,10 @@
 @extends('layouts.app')
 @php $editing = isset($tierList); @endphp
-@section('title', $editing ? 'ソート編集' : 'ソート作成')
+@section('title', $editing ? 'Tierリスト編集' : 'Tierリスト作成')
 
 @section('content')
 <div class="mx-auto max-w-4xl">
-    <h2 class="mb-4 text-2xl font-bold">📊 {{ $editing ? 'ソート編集' : 'ソート / ランキング作成' }}</h2>
+    <h2 class="mb-4 text-2xl font-bold">📊 {{ $editing ? 'Tierリスト編集' : 'Tierリスト作成' }}</h2>
 
     <form method="POST" action="{{ $editing ? route('tierlists.update', $tierList) : route('tierlists.store') }}"
           class="space-y-4 rounded-2xl bg-white p-6 shadow-sm" onsubmit="serializeTiers()">
@@ -30,13 +30,15 @@
         </div>
 
         <div class="rounded-xl bg-slate-50 p-4">
-            <div class="mb-3 flex gap-2">
-                <input type="text" id="newItem" placeholder="項目を追加 (例: キャラ名)"
-                       class="flex-1 rounded-lg border-slate-300 shadow-sm text-sm">
-                <button type="button" onclick="addItem()" class="rounded-lg bg-slate-700 px-4 text-sm text-white hover:bg-slate-600">追加</button>
+            <label class="block text-sm font-medium text-slate-700">項目を追加(改行・カンマ区切りでまとめて追加OK)</label>
+            <div class="mt-1 flex gap-2">
+                <textarea id="newItems" rows="2" placeholder="キャラA&#10;キャラB&#10;キャラC"
+                          class="flex-1 rounded-lg border-slate-300 font-mono text-sm shadow-sm"></textarea>
+                <button type="button" onclick="addItems()" class="shrink-0 rounded-lg bg-slate-700 px-4 text-sm text-white hover:bg-slate-600">＋追加</button>
             </div>
+            <p class="mt-1 text-xs text-slate-400">Ctrl+Enter でも追加。各チップの「×」で削除、ドラッグで各ティアへ移動。</p>
 
-            <div id="tiers" class="space-y-2"></div>
+            <div id="tiers" class="mt-4 space-y-2"></div>
 
             <div class="mt-4">
                 <p class="mb-1 text-xs font-bold text-slate-500">未分類(ここから各ティアへドラッグ)</p>
@@ -68,12 +70,23 @@
 
     function makeChip(text) {
         const chip = document.createElement('span');
-        chip.className = 'cursor-move rounded bg-white px-2 py-1 text-sm shadow border border-slate-200';
-        chip.textContent = text;
+        chip.dataset.chip = '1';
+        chip.dataset.label = text;
+        chip.className = 'inline-flex items-center gap-1 cursor-move rounded bg-white px-2 py-1 text-sm shadow border border-slate-200';
         chip.draggable = true;
         chip.ondragstart = () => dragged = chip;
-        chip.ondblclick = () => chip.remove();
-        chip.title = 'ダブルクリックで削除';
+
+        const label = document.createElement('span');
+        label.textContent = text;
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.textContent = '×';
+        del.className = 'ml-1 leading-none text-slate-400 hover:text-rose-500';
+        del.title = '削除';
+        del.onclick = (e) => { e.stopPropagation(); chip.remove(); };
+
+        chip.append(label, del);
         return chip;
     }
 
@@ -105,21 +118,22 @@
         });
     }
 
-    function addItem() {
-        const input = document.getElementById('newItem');
-        const val = input.value.trim();
-        if (!val) return;
-        poolEl.appendChild(makeChip(val));
-        input.value = '';
-        input.focus();
+    function addItems() {
+        const ta = document.getElementById('newItems');
+        const parts = ta.value.split(/\r?\n|,|、/).map(s => s.trim()).filter(Boolean);
+        parts.forEach(p => poolEl.appendChild(makeChip(p)));
+        ta.value = '';
+        ta.focus();
     }
-    document.getElementById('newItem').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } });
+    document.getElementById('newItems').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addItems(); }
+    });
 
     function serializeTiers() {
         const result = [];
         tiersEl.querySelectorAll('[data-row]').forEach(row => {
             const label = row.querySelector('[data-role=label]').value || '?';
-            const items = [...row.querySelector('[data-tier]').querySelectorAll('span')].map(s => s.textContent);
+            const items = [...row.querySelector('[data-tier]').querySelectorAll('[data-chip]')].map(c => c.dataset.label);
             result.push({ label, items });
         });
         document.getElementById('tiersInput').value = JSON.stringify(result);

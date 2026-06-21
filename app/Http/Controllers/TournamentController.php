@@ -94,35 +94,79 @@ class TournamentController extends Controller
     }
 
     /**
-     * シングルイリミネーション用の1回戦組み合わせを生成する。
-     * 2のべき乗になるよう不戦勝(BYE)を補う。
+     * シングルイリミネーションの全ラウンドを生成する。
+     * 標準シード配置でBYE(不戦勝)を均等に分散し、1回戦のBYEは自動で勝ち上がる。
+     * これにより「人数が半端でも特定の人だけ決勝直行」が起きない。
      */
     private function buildBracket(array $participants): array
     {
         shuffle($participants);
+        $n = count($participants);
+
         $size = 1;
-        while ($size < count($participants)) {
+        while ($size < $n) {
             $size *= 2;
         }
 
-        $slots = $participants;
-        while (count($slots) < $size) {
-            $slots[] = null; // BYE
+        // 標準シード順（1,16,8,9,4,13,... のような位置）にプレイヤーを配置。BYEは上位シードへ分散
+        $order = $this->seedOrder($size);
+        $slots = [];
+        foreach ($order as $seed) {
+            $slots[] = $seed <= $n ? $participants[$seed - 1] : null;
         }
 
-        $round = [];
+        // 1回戦（BYEは自動勝ち上がり）
+        $first = [];
         for ($i = 0; $i < $size; $i += 2) {
-            $round[] = [
-                'p1' => $slots[$i],
-                'p2' => $slots[$i + 1],
-                'winner' => null,
-            ];
+            $p1 = $slots[$i];
+            $p2 = $slots[$i + 1];
+            $winner = null;
+            if ($p1 !== null && $p2 === null) {
+                $winner = $p1;
+            } elseif ($p1 === null && $p2 !== null) {
+                $winner = $p2;
+            }
+            $first[] = ['p1' => $p1, 'p2' => $p2, 'winner' => $winner];
         }
 
-        return [
-            'rounds' => [$round],
-            'size' => $size,
-        ];
+        $rounds = [$first];
+
+        // 2回戦以降は空の対戦枠（前ラウンドの勝者が入る）
+        $prev = $first;
+        while (count($prev) > 1) {
+            $next = [];
+            for ($i = 0; $i < count($prev); $i += 2) {
+                $next[] = [
+                    'p1' => $prev[$i]['winner'],
+                    'p2' => $prev[$i + 1]['winner'],
+                    'winner' => null,
+                ];
+            }
+            $rounds[] = $next;
+            $prev = $next;
+        }
+
+        return ['rounds' => $rounds, 'size' => $size];
+    }
+
+    /**
+     * トーナメントの標準シード順を返す（長さ = $size）。
+     * 例: size=4 → [1,4,2,3] / size=8 → [1,8,4,5,2,7,3,6]
+     */
+    private function seedOrder(int $size): array
+    {
+        $seeds = [1, 2];
+        while (count($seeds) < $size) {
+            $sum = count($seeds) * 2 + 1;
+            $next = [];
+            foreach ($seeds as $s) {
+                $next[] = $s;
+                $next[] = $sum - $s;
+            }
+            $seeds = $next;
+        }
+
+        return $seeds;
     }
 
     private function authorizeOwner(Tournament $tournament): void

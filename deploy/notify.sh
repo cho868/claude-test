@@ -22,6 +22,7 @@ SITE_URL=""                        # 公開URL（任意・通知に添える）
 DOMAIN=""                          # 証明書チェック用ドメイン（例 madgear.sytes.net）
 NOIP_LAST_CONFIRMED=""             # no-ip を最後に確認した日 YYYY-MM-DD（無料は約30日ごと確認）
 LINE_TOKEN=""                      # LINE Messaging API のチャネルアクセストークン（任意）
+MEM_ALERT_THRESHOLD="85"           # メモリ使用率がこの%以上で警告（@everyone）
 
 [ -f /etc/portal-notify.conf ] && . /etc/portal-notify.conf
 
@@ -97,6 +98,23 @@ if [ -n "$NOIP_LAST_CONFIRMED" ]; then
   fi
 fi
 
+# ===== メモリ使用率（しきい値超で警告）=====
+MEM_LINE=""
+MEMINFO="$(cat /proc/meminfo 2>/dev/null || true)"
+if [ -n "$MEMINFO" ]; then
+  mt=$(echo "$MEMINFO" | awk '/^MemTotal:/{print $2}')
+  ma=$(echo "$MEMINFO" | awk '/^MemAvailable:/{print $2}')
+  if [ -n "$mt" ] && [ -n "$ma" ] && [ "$mt" -gt 0 ]; then
+    mem_pct=$(( (mt - ma) * 100 / mt ))
+    if [ "$mem_pct" -ge "$MEM_ALERT_THRESHOLD" ]; then
+      MEM_LINE="🟠 メモリ使用率 ${mem_pct}%（しきい値 ${MEM_ALERT_THRESHOLD}% 超）"
+      URGENT="@everyone "
+    else
+      MEM_LINE="🧠 メモリ ${mem_pct}%"
+    fi
+  fi
+fi
+
 # ===== メッセージ組み立て =====
 MSG="${URGENT}**${HOST_LABEL}** 稼働中 ✅（$TODAY）
 ${COUNTDOWN_LINE}
@@ -104,6 +122,8 @@ ${COUNTDOWN_LINE}
 ${NOIP_LINE}"
 [ -n "$CERT_LINE" ] && MSG="${MSG}
 ${CERT_LINE}"
+[ -n "$MEM_LINE" ] && MSG="${MSG}
+${MEM_LINE}"
 MSG="${MSG}
 🖥️ ${UPTIME} / 💽 ${DISK}"
 [ -n "$SITE_URL" ] && MSG="${MSG}

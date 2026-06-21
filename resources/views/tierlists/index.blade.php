@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@section('title', 'ソート/ランキング')
+@section('title', 'Tierリスト')
 
 @section('content')
 <div class="mb-4 flex items-center justify-between">
-    <h2 class="text-2xl font-bold">📊 ソート / ランキング</h2>
+    <h2 class="text-2xl font-bold">📊 Tierリスト</h2>
     <a href="{{ route('tierlists.create') }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">＋ 新規作成</a>
 </div>
 

@@ -27,3 +27,6 @@ HOST_LABEL="身内ポータル"
 
 # LINE 通知（任意）: Messaging API のチャネルアクセストークン。Botを友だち追加した人全員に届く
 LINE_TOKEN=""
+
+# メモリ使用率アラートのしきい値（%。これ以上でDiscord/LINEに警告）
+MEM_ALERT_THRESHOLD="85"

@@ -21,7 +21,7 @@
                         @php
                             $nav = [
                                 'tournaments.index' => ['🏆', 'トーナメント'],
-                                'tierlists.index'   => ['📊', 'ソート'],
+                                'tierlists.index'   => ['📊', 'Tierリスト'],
                                 'memos.index'       => ['📝', 'メモ'],
                                 'sleep.index'       => ['😴', '睡眠'],
                                 'games.index'       => ['🎮', 'ゲーム時間'],

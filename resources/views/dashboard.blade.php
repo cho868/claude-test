@@ -43,7 +43,7 @@
                 @php
                     $tools = [
                         ['tournaments.index', '🏆', 'トーナメント作成', '対戦表を自動生成'],
-                        ['tierlists.index', '📊', 'ソート/ランキング', 'ティアリストを作成'],
+                        ['tierlists.index', '📊', 'Tierリスト', 'Tierリストを作成・共有'],
                         ['memos.index', '📝', 'GMQ2メモ', '攻略メモを共有'],
                         ['sleep.index', '😴', '睡眠時間チェック', '睡眠を記録・可視化'],
                         ['games.index', '🎮', 'ゲーム時間', 'Steam連携 / 手動記録'],

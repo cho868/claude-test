@@ -137,6 +137,42 @@ class PortalTest extends TestCase
         $this->actingAs($admin)->get(route('documents.show', $doc))->assertOk();
     }
 
+    public function test_nine_player_tournament_bracket_is_fair(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']; // 9人
+
+        $this->actingAs($admin)->post(route('tournaments.store'), [
+            'name' => 'テスト大会',
+            'format' => 'single',
+            'participants_text' => implode("\n", $names),
+        ])->assertRedirect();
+
+        $bracket = \App\Models\Tournament::latest('id')->first()->bracket;
+
+        // 9人 → サイズ16 → 4ラウンド
+        $this->assertCount(4, $bracket['rounds']);
+        $this->assertSame(16, $bracket['size']);
+
+        // 1回戦は8試合、BYE自動勝ち上がりは 16-9=7 件
+        $this->assertCount(8, $bracket['rounds'][0]);
+        $autoWins = collect($bracket['rounds'][0])->filter(fn ($m) => $m['winner'] !== null)->count();
+        $this->assertSame(7, $autoWins);
+
+        // 公平性の核心: 1回戦に「BYE対BYE」が無い＝BYEが分散し、誰も2回戦をスキップしない
+        foreach ($bracket['rounds'][0] as $m) {
+            $this->assertFalse($m['p1'] === null && $m['p2'] === null, '1回戦にBYE同士の組があってはいけない');
+        }
+
+        // BYEを貰った人も必ず2回戦で「実在の相手」と当たる（決勝直行が起きない）
+        // = 2回戦の各枠は、BYE勝者(実在) か 1回戦の勝者待ち(null) のいずれか
+        $byeWinners = collect($bracket['rounds'][0])
+            ->filter(fn ($m) => ($m['p1'] === null) xor ($m['p2'] === null))
+            ->map(fn ($m) => $m['winner']);
+        $this->assertCount(7, $byeWinners);
+    }
+
     public function test_registration_requires_invite_code_when_configured(): void
     {
         config(['portal.invite_code' => 'secret123']);

@@ -30,8 +30,8 @@
 
 @if ($isOwner)
     <div class="mt-4 flex gap-3">
-        <button id="nextRoundBtn" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">次のラウンドを生成</button>
         <button id="saveBtn" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">保存</button>
+        <span class="self-center text-xs text-slate-400">勝者をクリック → 次のラウンドに自動で進みます。最後に「保存」。</span>
     </div>
     <form id="saveForm" method="POST" action="{{ route('tournaments.update', $tournament) }}" class="hidden">
         @csrf @method('PUT')
@@ -45,30 +45,47 @@
     const isOwner = @json($isOwner);
     const container = document.getElementById('bracket');
 
+    // 前ラウンドの勝者を次ラウンドの対戦枠に反映し、無効になった勝者は消す
+    function syncPlayers() {
+        for (let r = 1; r < bracket.rounds.length; r++) {
+            bracket.rounds[r].forEach((m, j) => {
+                const a = bracket.rounds[r - 1][2 * j].winner ?? null;
+                const b = bracket.rounds[r - 1][2 * j + 1].winner ?? null;
+                m.p1 = a;
+                m.p2 = b;
+                if (m.winner && m.winner !== a && m.winner !== b) {
+                    m.winner = null; // 上流が変わって不整合になった勝者をクリア
+                }
+            });
+        }
+    }
+
     function render() {
+        syncPlayers();
         container.innerHTML = '';
         bracket.rounds.forEach((round, ri) => {
             const col = document.createElement('div');
             col.className = 'flex min-w-[180px] flex-col justify-around gap-4';
             const heading = document.createElement('div');
             heading.className = 'text-center text-xs font-bold text-slate-400';
-            heading.textContent = 'ラウンド ' + (ri + 1);
+            heading.textContent = (ri === bracket.rounds.length - 1) ? '決勝' : ('ラウンド ' + (ri + 1));
             col.appendChild(heading);
 
-            round.forEach((m, mi) => {
+            round.forEach((m) => {
                 const card = document.createElement('div');
                 card.className = 'rounded-lg border border-slate-200 text-sm';
-                [['p1', m.p1], ['p2', m.p2]].forEach(([key, name]) => {
+                [m.p1, m.p2].forEach((name) => {
                     const row = document.createElement('div');
                     const isWinner = m.winner && m.winner === name;
+                    const isBye = name === null && ri === 0;
                     row.className = 'flex items-center justify-between border-b px-3 py-2 last:border-0 '
                         + (isWinner ? 'bg-emerald-50 font-bold text-emerald-700' : '')
                         + (name === null ? ' text-slate-300' : '');
-                    row.textContent = name === null ? '（BYE）' : name;
+                    row.textContent = name === null ? (isBye ? '（BYE）' : '（未定）') : name;
                     if (isOwner && name) {
                         row.style.cursor = 'pointer';
                         row.title = 'クリックで勝者に設定';
-                        row.onclick = () => { m.winner = name; render(); };
+                        row.onclick = () => { m.winner = (m.winner === name) ? null : name; render(); };
                     }
                     card.appendChild(row);
                 });
@@ -88,21 +105,10 @@
     }
 
     if (isOwner) {
-        document.getElementById('nextRoundBtn').onclick = () => {
-            const last = bracket.rounds[bracket.rounds.length - 1];
-            if (last.length <= 1) { alert('これ以上ラウンドはありません。'); return; }
-            if (last.some(m => !m.winner)) { alert('全試合の勝者を決めてください。'); return; }
-            const winners = last.map(m => m.winner);
-            const next = [];
-            for (let i = 0; i < winners.length; i += 2) {
-                next.push({ p1: winners[i], p2: winners[i + 1] ?? null, winner: null });
-            }
-            bracket.rounds.push(next);
-            render();
-        };
         document.getElementById('saveBtn').onclick = () => {
+            syncPlayers();
             const last = bracket.rounds[bracket.rounds.length - 1];
-            const finished = last.length === 1 && last[0].winner;
+            const finished = last.length === 1 && !!last[0].winner;
             document.getElementById('bracketInput').value = JSON.stringify(bracket);
             document.getElementById('statusInput').value = finished ? 'finished' : 'ongoing';
             document.getElementById('saveForm').submit();
