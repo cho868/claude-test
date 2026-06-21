@@ -36,7 +36,7 @@ class PortalTest extends TestCase
         $this->assertSame(1, $user->login_streak);
         // 基礎10pt + ストリーク(1日 * 2) = 12pt
         $this->assertSame(12, (int) $user->points);
-        $this->assertTrue($user->is_admin, '最初のユーザーは管理者になる');
+        $this->assertFalse($user->is_admin, '新規登録では管理者にならない');
     }
 
     public function test_daily_login_bonus_is_awarded_once_per_day(): void
