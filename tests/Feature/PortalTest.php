@@ -36,7 +36,7 @@ class PortalTest extends TestCase
         $this->assertSame(1, $user->login_streak);
         // 基礎10pt + ストリーク(1日 * 2) = 12pt
         $this->assertSame(12, (int) $user->points);
-        $this->assertFalse($user->is_admin, '新規登録では管理者にならない');
+        $this->assertTrue($user->is_admin, '最初のユーザーは管理者になる');
     }
 
     public function test_daily_login_bonus_is_awarded_once_per_day(): void
@@ -150,27 +150,129 @@ class PortalTest extends TestCase
         ])->assertRedirect();
 
         $bracket = \App\Models\Tournament::latest('id')->first()->bracket;
-
-        // 9人 → サイズ16 → 4ラウンド
-        $this->assertCount(4, $bracket['rounds']);
+        $this->assertSame('single', $bracket['format']);
         $this->assertSame(16, $bracket['size']);
 
-        // 1回戦は8試合、BYE自動勝ち上がりは 16-9=7 件
-        $this->assertCount(8, $bracket['rounds'][0]);
-        $autoWins = collect($bracket['rounds'][0])->filter(fn ($m) => $m['winner'] !== null)->count();
-        $this->assertSame(7, $autoWins);
+        // 勝者側1回戦(WB round0)を取り出す
+        $first = collect($bracket['matches'])->filter(fn ($m) => $m['bracket'] === 'W' && $m['round'] === 0);
+        $this->assertCount(8, $first);
 
         // 公平性の核心: 1回戦に「BYE対BYE」が無い＝BYEが分散し、誰も2回戦をスキップしない
-        foreach ($bracket['rounds'][0] as $m) {
+        foreach ($first as $m) {
             $this->assertFalse($m['p1'] === null && $m['p2'] === null, '1回戦にBYE同士の組があってはいけない');
         }
 
-        // BYEを貰った人も必ず2回戦で「実在の相手」と当たる（決勝直行が起きない）
-        // = 2回戦の各枠は、BYE勝者(実在) か 1回戦の勝者待ち(null) のいずれか
-        $byeWinners = collect($bracket['rounds'][0])
-            ->filter(fn ($m) => ($m['p1'] === null) xor ($m['p2'] === null))
-            ->map(fn ($m) => $m['winner']);
-        $this->assertCount(7, $byeWinners);
+        // BYE(片側だけ空き)は 16-9=7 件
+        $byes = $first->filter(fn ($m) => ($m['p1'] === null) xor ($m['p2'] === null));
+        $this->assertCount(7, $byes);
+    }
+
+    public function test_double_elimination_graph_routes_losers(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($admin)->post(route('tournaments.store'), [
+            'name' => 'ダブル大会',
+            'format' => 'double',
+            'participants_text' => "A\nB\nC\nD", // 4人 → きれいなダブルイリミ
+        ])->assertRedirect();
+
+        $bracket = \App\Models\Tournament::latest('id')->first()->bracket;
+        $this->assertSame('double', $bracket['format']);
+
+        $byId = collect($bracket['matches'])->keyBy('id');
+
+        // WB決勝の勝者はGFのp1、敗者はLB決勝(L1_0)へ
+        $this->assertSame(['GF', 'p1'], $byId['W1_0']['winnerTo']);
+        $this->assertSame('L1_0', $byId['W1_0']['loserTo'][0]);
+        // LB決勝の勝者はGFのp2
+        $this->assertSame(['GF', 'p2'], $byId['L1_0']['winnerTo']);
+        // GFは最終戦（行き先なし）
+        $this->assertNull($byId['GF']['winnerTo']);
+        // WB1回戦の敗者はLB1回戦へ
+        $this->assertSame('L0_0', $byId['W0_0']['loserTo'][0]);
+    }
+
+    /**
+     * ダブルイリミを最後まで進めて優勝者が確定するか（LB/GFの配線検証）。
+     */
+    public function test_double_elimination_resolves_a_champion(): void
+    {
+        foreach ([2, 4, 5, 8] as $n) {
+            $bracket = $this->buildBracketViaController(
+                array_map(fn ($i) => "P{$i}", range(1, $n)),
+                'double',
+            );
+            $matches = $bracket['matches'];
+
+            // 常に p1 を勝者に選び続け、収束させる
+            for ($iter = 0; $iter < 60; $iter++) {
+                $this->deriveBracket($matches);
+                $changed = false;
+                foreach ($matches as &$m) {
+                    if ($m['p1'] !== null && $m['p2'] !== null && $m['pick'] === null) {
+                        $m['pick'] = $m['p1'];
+                        $changed = true;
+                    }
+                }
+                unset($m);
+                if (! $changed) {
+                    break;
+                }
+            }
+            $this->deriveBracket($matches);
+
+            $final = collect($matches)->firstWhere('winnerTo', null);
+            $this->assertNotNull($final['winner'], "n={$n}: 優勝者が確定していない");
+        }
+    }
+
+    /** コントローラの buildBracket を呼ぶ */
+    private function buildBracketViaController(array $players, string $format): array
+    {
+        $m = new \ReflectionMethod(\App\Http\Controllers\TournamentController::class, 'buildBracket');
+        $m->setAccessible(true);
+
+        return $m->invoke(new \App\Http\Controllers\TournamentController(), $players, $format);
+    }
+
+    /** 表示側 derive() の PHP 版（seed + pick から全スロットを導出） */
+    private function deriveBracket(array &$matches): void
+    {
+        $by = [];
+        foreach ($matches as $i => $m) {
+            $by[$m['id']] = $i;
+        }
+        foreach ($matches as &$m) {
+            if (! ($m['bracket'] === 'W' && $m['round'] === 0)) {
+                $m['p1'] = null;
+                $m['p2'] = null;
+            }
+            $m['winner'] = null;
+        }
+        unset($m);
+        foreach ($matches as &$m) {
+            $w = null;
+            $l = null;
+            if ($m['p1'] !== null && $m['p2'] !== null) {
+                if ($m['pick'] === $m['p1'] || $m['pick'] === $m['p2']) {
+                    $w = $m['pick'];
+                    $l = $w === $m['p1'] ? $m['p2'] : $m['p1'];
+                }
+            } elseif ($m['p1'] !== null && $m['p2'] === null) {
+                $w = $m['p1'];
+            } elseif ($m['p1'] === null && $m['p2'] !== null) {
+                $w = $m['p2'];
+            }
+            $m['winner'] = $w;
+            if ($w !== null && $m['winnerTo']) {
+                $matches[$by[$m['winnerTo'][0]]][$m['winnerTo'][1]] = $w;
+            }
+            if ($l !== null && $m['loserTo']) {
+                $matches[$by[$m['loserTo'][0]]][$m['loserTo'][1]] = $l;
+            }
+        }
+        unset($m);
     }
 
     public function test_registration_requires_invite_code_when_configured(): void

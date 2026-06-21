@@ -9,6 +9,7 @@
         <h2 class="text-2xl font-bold">🏆 {{ $tournament->name }}</h2>
         <p class="text-sm text-slate-500">
             {{ $tournament->user->name }} 作成 ・ {{ count($tournament->participants ?? []) }}人 ・
+            {{ ($tournament->bracket['format'] ?? $tournament->format) === 'double' ? 'ダブルイリミ' : 'シングル' }} ・
             <span id="statusLabel">{{ $tournament->status === 'finished' ? '終了' : '進行中' }}</span>
         </p>
     </div>
@@ -24,14 +25,45 @@
     <p class="mb-4 rounded-xl bg-white p-4 text-sm text-slate-600 shadow-sm">{{ $tournament->description }}</p>
 @endif
 
-<div class="overflow-x-auto rounded-2xl bg-white p-6 shadow-sm">
-    <div id="bracket" class="flex items-start gap-8"></div>
+@if (empty($tournament->bracket['matches']))
+    <div class="rounded-2xl bg-amber-50 p-6 text-sm text-amber-800">
+        この対戦表は旧形式です。お手数ですが新しく作成し直してください。
+    </div>
+@else
+<div id="champBanner" class="mb-4 hidden rounded-2xl bg-amber-100 p-4 text-center text-lg font-bold text-amber-700"></div>
+
+<style>
+    #bracketWrap { position: relative; overflow: auto; }
+    #lines { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0; }
+    .bk-row { display: flex; align-items: stretch; gap: 48px; position: relative; z-index: 1; width: max-content; }
+    .bk-col { display: flex; flex-direction: column; justify-content: space-around; min-width: 150px; gap: 14px; }
+    .bk-col h4 { text-align: center; font-size: 11px; font-weight: 700; color: #94a3b8; }
+    .bk-match { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+    .bk-row-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
+    .bk-row-item:last-child { border-bottom: 0; }
+    .bk-win { background: #ecfdf5; font-weight: 700; color: #047857; }
+    .bk-empty { color: #cbd5e1; }
+    .bk-pick { cursor: pointer; }
+    .bk-pick:hover { background: #f8fafc; }
+    .bk-section-label { font-weight: 700; color: #475569; margin: 4px 0; }
+</style>
+
+<div id="bracketWrap" class="rounded-2xl bg-white p-6 shadow-sm">
+    <svg id="lines"></svg>
+    <div class="relative" style="z-index:1;">
+        <div class="bk-section-label">🏅 勝者側（WB）</div>
+        <div id="wbRow" class="bk-row"></div>
+        <div id="lbWrap" class="mt-8 hidden">
+            <div class="bk-section-label">💀 敗者側（LB）</div>
+            <div id="lbRow" class="bk-row"></div>
+        </div>
+    </div>
 </div>
 
 @if ($isOwner)
-    <div class="mt-4 flex gap-3">
+    <div class="mt-4 flex items-center gap-3">
         <button id="saveBtn" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">保存</button>
-        <span class="self-center text-xs text-slate-400">勝者をクリック → 次のラウンドに自動で進みます。最後に「保存」。</span>
+        <span class="text-xs text-slate-400">勝者をクリック → 自動で次へ進みます。線は勝ち上がり（灰）／敗者の移動（赤点線）。最後に「保存」。</span>
     </div>
     <form id="saveForm" method="POST" action="{{ route('tournaments.update', $tournament) }}" class="hidden">
         @csrf @method('PUT')
@@ -41,80 +73,143 @@
 @endif
 
 <script>
-    const bracket = @json($tournament->bracket ?? ['rounds' => [], 'size' => 0]);
+    const data = @json($tournament->bracket);
     const isOwner = @json($isOwner);
-    const container = document.getElementById('bracket');
+    const byId = {};
+    data.matches.forEach(m => byId[m.id] = m);
 
-    // 前ラウンドの勝者を次ラウンドの対戦枠に反映し、無効になった勝者は消す
-    function syncPlayers() {
-        for (let r = 1; r < bracket.rounds.length; r++) {
-            bracket.rounds[r].forEach((m, j) => {
-                const a = bracket.rounds[r - 1][2 * j].winner ?? null;
-                const b = bracket.rounds[r - 1][2 * j + 1].winner ?? null;
-                m.p1 = a;
-                m.p2 = b;
-                if (m.winner && m.winner !== a && m.winner !== b) {
-                    m.winner = null; // 上流が変わって不整合になった勝者をクリア
-                }
-            });
+    const wrap = document.getElementById('bracketWrap');
+    const svg = document.getElementById('lines');
+
+    // seed(W round0) と各試合の pick から全スロット・勝者を導出
+    function derive() {
+        data.matches.forEach(m => {
+            if (!(m.bracket === 'W' && m.round === 0)) { m.p1 = null; m.p2 = null; }
+            m.winner = null;
+        });
+        data.matches.forEach(m => {
+            let winner = null, loser = null;
+            if (m.p1 !== null && m.p2 !== null) {
+                if (m.pick === m.p1 || m.pick === m.p2) { winner = m.pick; loser = (winner === m.p1) ? m.p2 : m.p1; }
+            } else if (m.p1 !== null && m.p2 === null) { winner = m.p1; }
+            else if (m.p1 === null && m.p2 !== null) { winner = m.p2; }
+            m.winner = winner;
+            if (winner !== null && m.winnerTo) byId[m.winnerTo[0]][m.winnerTo[1]] = winner;
+            if (loser !== null && m.loserTo) byId[m.loserTo[0]][m.loserTo[1]] = loser;
+        });
+    }
+
+    function champion() {
+        const fin = data.matches.find(m => !m.winnerTo);
+        return fin ? fin.winner : null;
+    }
+
+    function makeCard(m) {
+        const card = document.createElement('div');
+        card.className = 'bk-match';
+        card.dataset.mid = m.id;
+        [m.p1, m.p2].forEach(name => {
+            const row = document.createElement('div');
+            const isWin = m.winner && m.winner === name;
+            const bye = name === null && m.bracket === 'W' && m.round === 0;
+            row.className = 'bk-row-item' + (isWin ? ' bk-win' : '') + (name === null ? ' bk-empty' : '');
+            const span = document.createElement('span');
+            span.textContent = name === null ? (bye ? '（BYE）' : '（未定）') : name;
+            row.appendChild(span);
+            if (isOwner && name && m.p1 !== null && m.p2 !== null) {
+                row.classList.add('bk-pick');
+                row.title = 'クリックで勝者に設定';
+                row.onclick = () => { m.pick = (m.pick === name) ? null : name; render(); };
+            }
+            card.appendChild(row);
+        });
+        return card;
+    }
+
+    function renderBracketRow(rowEl, bracketKey, extraGF) {
+        rowEl.innerHTML = '';
+        const rounds = {};
+        data.matches.filter(m => m.bracket === bracketKey).forEach(m => {
+            (rounds[m.round] = rounds[m.round] || []).push(m);
+        });
+        Object.keys(rounds).map(Number).sort((a, b) => a - b).forEach(r => {
+            const col = document.createElement('div');
+            col.className = 'bk-col';
+            const h = document.createElement('h4');
+            h.textContent = rounds[r][0].label;
+            col.appendChild(h);
+            rounds[r].sort((a, b) => a.col - b.col).forEach(m => col.appendChild(makeCard(m)));
+            rowEl.appendChild(col);
+        });
+        // 勝者側の右端にグランドファイナル列を追加
+        if (extraGF && byId['GF']) {
+            const col = document.createElement('div');
+            col.className = 'bk-col';
+            const h = document.createElement('h4');
+            h.textContent = byId['GF'].label;
+            col.appendChild(h);
+            col.appendChild(makeCard(byId['GF']));
+            rowEl.appendChild(col);
         }
     }
 
-    function render() {
-        syncPlayers();
-        container.innerHTML = '';
-        bracket.rounds.forEach((round, ri) => {
-            const col = document.createElement('div');
-            col.className = 'flex min-w-[180px] flex-col justify-around gap-4';
-            const heading = document.createElement('div');
-            heading.className = 'text-center text-xs font-bold text-slate-400';
-            heading.textContent = (ri === bracket.rounds.length - 1) ? '決勝' : ('ラウンド ' + (ri + 1));
-            col.appendChild(heading);
+    function lineBetween(srcId, dstId, color, dashed) {
+        const a = wrap.querySelector('[data-mid="' + srcId + '"]');
+        const b = wrap.querySelector('[data-mid="' + dstId + '"]');
+        if (!a || !b) return;
+        const wr = wrap.getBoundingClientRect();
+        const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
+        const x1 = ar.right - wr.left + wrap.scrollLeft, y1 = ar.top - wr.top + wrap.scrollTop + ar.height / 2;
+        const x2 = br.left - wr.left + wrap.scrollLeft, y2 = br.top - wr.top + wrap.scrollTop + br.height / 2;
+        const mx = (x1 + x2) / 2;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${x1} ${y1} H ${mx} V ${y2} H ${x2}`);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', color);
+        path.setAttribute('stroke-width', '2');
+        if (dashed) path.setAttribute('stroke-dasharray', '4 4');
+        svg.appendChild(path);
+    }
 
-            round.forEach((m) => {
-                const card = document.createElement('div');
-                card.className = 'rounded-lg border border-slate-200 text-sm';
-                [m.p1, m.p2].forEach((name) => {
-                    const row = document.createElement('div');
-                    const isWinner = m.winner && m.winner === name;
-                    const isBye = name === null && ri === 0;
-                    row.className = 'flex items-center justify-between border-b px-3 py-2 last:border-0 '
-                        + (isWinner ? 'bg-emerald-50 font-bold text-emerald-700' : '')
-                        + (name === null ? ' text-slate-300' : '');
-                    row.textContent = name === null ? (isBye ? '（BYE）' : '（未定）') : name;
-                    if (isOwner && name) {
-                        row.style.cursor = 'pointer';
-                        row.title = 'クリックで勝者に設定';
-                        row.onclick = () => { m.winner = (m.winner === name) ? null : name; render(); };
-                    }
-                    card.appendChild(row);
-                });
-                col.appendChild(card);
-            });
-            container.appendChild(col);
+    function drawLines() {
+        svg.innerHTML = '';
+        svg.setAttribute('width', wrap.scrollWidth);
+        svg.setAttribute('height', wrap.scrollHeight);
+        data.matches.forEach(m => {
+            if (m.winnerTo) lineBetween(m.id, m.winnerTo[0], '#cbd5e1', false);
+            if (m.loserTo) lineBetween(m.id, m.loserTo[0], '#fda4af', true);
         });
+    }
 
-        // 優勝者表示
-        const last = bracket.rounds[bracket.rounds.length - 1];
-        if (last && last.length === 1 && last[0].winner) {
-            const champ = document.createElement('div');
-            champ.className = 'flex flex-col justify-center';
-            champ.innerHTML = '<div class="rounded-lg bg-amber-100 px-4 py-3 text-center font-bold text-amber-700">🏆 優勝<br>' + last[0].winner + '</div>';
-            container.appendChild(champ);
+    function render() {
+        derive();
+        renderBracketRow(document.getElementById('wbRow'), 'W', data.format === 'double');
+        const lbWrap = document.getElementById('lbWrap');
+        if (data.matches.some(m => m.bracket === 'L')) {
+            lbWrap.classList.remove('hidden');
+            renderBracketRow(document.getElementById('lbRow'), 'L', false);
         }
+        // 優勝表示
+        const champ = champion();
+        const banner = document.getElementById('champBanner');
+        if (champ) { banner.textContent = '🏆 優勝: ' + champ; banner.classList.remove('hidden'); }
+        else { banner.classList.add('hidden'); }
+        const sl = document.getElementById('statusLabel');
+        if (sl) sl.textContent = champ ? '終了' : '進行中';
+        requestAnimationFrame(drawLines);
     }
 
     if (isOwner) {
         document.getElementById('saveBtn').onclick = () => {
-            syncPlayers();
-            const last = bracket.rounds[bracket.rounds.length - 1];
-            const finished = last.length === 1 && !!last[0].winner;
-            document.getElementById('bracketInput').value = JSON.stringify(bracket);
-            document.getElementById('statusInput').value = finished ? 'finished' : 'ongoing';
+            derive();
+            document.getElementById('bracketInput').value = JSON.stringify(data);
+            document.getElementById('statusInput').value = champion() ? 'finished' : 'ongoing';
             document.getElementById('saveForm').submit();
         };
     }
 
+    window.addEventListener('resize', drawLines);
     render();
 </script>
+@endif
 @endsection

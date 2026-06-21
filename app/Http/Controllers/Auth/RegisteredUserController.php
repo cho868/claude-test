@@ -42,9 +42,13 @@ class RegisteredUserController extends Controller
 
         $user = User::create($validated);
 
-        // 管理者権限は自動付与しない。最初の管理者は
+        // 最初に登録したユーザーだけ管理者にする(初期セットアップ用)。
+        // 2人目以降は一般ユーザー。あとから管理画面 or
         //   php artisan portal:make-admin {email}
-        // で任命する（既存の管理者は管理画面のユーザー管理から付与/剥奪できる）。
+        // で付与/剥奪できる。
+        if (User::count() === 1) {
+            $user->forceFill(['is_admin' => true])->save();
+        }
 
         event(new Registered($user));
         Auth::login($user);
