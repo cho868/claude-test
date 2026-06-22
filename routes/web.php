@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FitnessController;
+use App\Http\Controllers\MatchRecordController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\GameSessionController;
 use App\Http\Controllers\MemoController;
@@ -62,6 +63,11 @@ Route::middleware('auth')->group(function () {
     Route::resource('challenges', ChallengeController::class)->except(['edit', 'update']);
     Route::post('challenges/{challenge}/join', [ChallengeController::class, 'join'])->name('challenges.join');
     Route::post('challenges/{challenge}/leave', [ChallengeController::class, 'leave'])->name('challenges.leave');
+
+    // 対戦ゲームの戦績(手動)
+    Route::get('matches', [MatchRecordController::class, 'index'])->name('matches.index');
+    Route::post('matches', [MatchRecordController::class, 'store'])->name('matches.store');
+    Route::delete('matches/{match}', [MatchRecordController::class, 'destroy'])->name('matches.destroy');
 
     // 管理者エリア
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {

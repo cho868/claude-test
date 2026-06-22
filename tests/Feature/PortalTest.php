@@ -321,6 +321,46 @@ class PortalTest extends TestCase
         $this->assertSame(75.0, $challenge->standings()->first()['value']);
     }
 
+    public function test_sleep_allows_multiple_segments_per_day(): void
+    {
+        $user = User::factory()->create();
+
+        // 同じ日に2区間（22:00-2:00 と 4:00-10:00）
+        $this->actingAs($user)->post(route('sleep.store'), [
+            'sleep_date' => '2026-06-21',
+            'bed_at' => '2026-06-20T22:00',
+            'wake_at' => '2026-06-21T02:00',
+        ])->assertRedirect();
+        $this->actingAs($user)->post(route('sleep.store'), [
+            'sleep_date' => '2026-06-21',
+            'bed_at' => '2026-06-21T04:00',
+            'wake_at' => '2026-06-21T10:00',
+        ])->assertRedirect();
+
+        $segs = \App\Models\SleepRecord::where('user_id', $user->id)->get();
+        $this->assertCount(2, $segs, '同じ日に2区間記録できる');
+        $this->assertSame(4 * 60 + 6 * 60, (int) $segs->sum('duration_minutes'), '合計10時間');
+    }
+
+    public function test_match_record_winrate(): void
+    {
+        $user = User::factory()->create();
+        foreach (['win', 'win', 'loss', 'draw'] as $i => $res) {
+            $this->actingAs($user)->post(route('matches.store'), [
+                'game' => 'スマブラ',
+                'result' => $res,
+                'played_on' => '2026-06-2' . $i,
+            ])->assertRedirect();
+        }
+
+        // 2勝1敗1分 → 勝率 = 2/(2+1) = 67%
+        $records = \App\Models\MatchRecord::where('user_id', $user->id)->get();
+        $win = $records->where('result', 'win')->count();
+        $loss = $records->where('result', 'loss')->count();
+        $this->assertSame(2, $win);
+        $this->assertSame(67, (int) round($win / ($win + $loss) * 100));
+    }
+
     public function test_registration_requires_invite_code_when_configured(): void
     {
         config(['portal.invite_code' => 'secret123']);

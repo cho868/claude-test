@@ -25,6 +25,7 @@
                                 'memos.index'       => ['📝', 'メモ'],
                                 'sleep.index'       => ['😴', '睡眠'],
                                 'games.index'       => ['🎮', 'ゲーム時間'],
+                                'matches.index'     => ['⚔️', '戦績'],
                                 'surveys.index'     => ['🗳️', 'アンケート'],
                                 'schedule.index'    => ['📅', '予定'],
                                 'fitness.index'     => ['💪', 'フィットネス'],

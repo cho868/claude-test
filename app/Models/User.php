@@ -126,6 +126,11 @@ class User extends Authenticatable
         return $this->hasMany(Challenge::class);
     }
 
+    public function matchRecords(): HasMany
+    {
+        return $this->hasMany(MatchRecord::class);
+    }
+
     /**
      * 現在のポイントで到達できる最高位の称号。
      */

@@ -13,19 +13,29 @@ class SleepRecordController extends Controller
     {
         $records = SleepRecord::where('user_id', auth()->id())
             ->orderByDesc('sleep_date')
-            ->take(30)
+            ->orderBy('bed_at')
+            ->take(120)
             ->get();
 
-        $avgMinutes = (int) round($records->avg('duration_minutes') ?? 0);
+        // 日ごとに合算（分割睡眠を1日として集計）
+        $days = $records->groupBy(fn ($r) => $r->sleep_date->format('Y-m-d'))
+            ->map(fn ($segs) => [
+                'date' => $segs->first()->sleep_date,
+                'total' => (int) $segs->sum('duration_minutes'),
+                'segments' => $segs,
+            ])
+            ->values();
 
-        // 直近7日分のグラフ用データ(古い順)
-        $chart = $records->take(7)->reverse()->values()->map(fn ($r) => [
-            'date' => $r->sleep_date->format('m/d'),
-            'hours' => round($r->duration_minutes / 60, 1),
+        $avgMinutes = (int) round($days->avg('total') ?? 0);
+
+        // 直近7日分のグラフ用データ(古い順・1日の合計)
+        $chart = $days->take(7)->reverse()->values()->map(fn ($d) => [
+            'date' => $d['date']->format('m/d'),
+            'hours' => round($d['total'] / 60, 1),
         ]);
 
         return view('sleep.index', [
-            'records' => $records,
+            'days' => $days,
             'avgMinutes' => $avgMinutes,
             'chart' => $chart,
         ]);
@@ -42,24 +52,25 @@ class SleepRecordController extends Controller
 
         $bedAt = Carbon::parse($validated['bed_at']);
         $wakeAt = Carbon::parse($validated['wake_at']);
-        $duration = $bedAt->diffInMinutes($wakeAt);
 
-        $record = SleepRecord::updateOrCreate(
-            ['user_id' => $request->user()->id, 'sleep_date' => $validated['sleep_date']],
-            [
-                'bed_at' => $bedAt,
-                'wake_at' => $wakeAt,
-                'duration_minutes' => $duration,
-                'note' => $validated['note'] ?? null,
-            ],
-        );
+        // その日の最初の記録か（ポイントは1日1回だけ）
+        $firstOfDay = ! SleepRecord::where('user_id', $request->user()->id)
+            ->where('sleep_date', $validated['sleep_date'])->exists();
 
-        // その日の初回記録のみポイント付与
-        if ($record->wasRecentlyCreated) {
+        $record = SleepRecord::create([
+            'user_id' => $request->user()->id,
+            'sleep_date' => $validated['sleep_date'],
+            'bed_at' => $bedAt,
+            'wake_at' => $wakeAt,
+            'duration_minutes' => $bedAt->diffInMinutes($wakeAt),
+            'note' => $validated['note'] ?? null,
+        ]);
+
+        if ($firstOfDay) {
             $points->award($request->user(), 5, 'sleep_log', '睡眠記録');
         }
 
-        return back()->with('status', '睡眠を記録しました(' . $record->hoursLabel() . ')');
+        return back()->with('status', '睡眠を記録しました(' . $record->hoursLabel() . ')。同じ日にもう一度記録すれば分割睡眠も合算されます。');
     }
 
     public function destroy(SleepRecord $sleep)

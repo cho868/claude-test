@@ -48,34 +48,34 @@
             </div>
         </div>
 
-        {{-- 履歴 --}}
+        {{-- 履歴（日ごと・分割睡眠は合算） --}}
         <div class="mt-4 rounded-2xl bg-white p-5 shadow-sm">
             <h3 class="mb-2 font-bold">記録一覧</h3>
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="border-b text-left text-xs text-slate-400">
-                        <th class="py-1">日付</th><th>就寝</th><th>起床</th><th>睡眠</th><th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($records as $r)
-                        <tr class="border-b last:border-0">
-                            <td class="py-1.5">{{ $r->sleep_date->format('n/j') }}</td>
-                            <td>{{ $r->bed_at->format('H:i') }}</td>
-                            <td>{{ $r->wake_at->format('H:i') }}</td>
-                            <td class="font-semibold">{{ $r->hoursLabel() }}</td>
-                            <td class="text-right">
-                                <form method="POST" action="{{ route('sleep.destroy', $r) }}" onsubmit="return confirm('削除しますか?')">
+            <div class="space-y-3">
+                @forelse ($days as $d)
+                    @php $h = intdiv($d['total'],60); $m = $d['total']%60; @endphp
+                    <div class="rounded-xl border border-slate-100 p-3">
+                        <div class="mb-1 flex items-center justify-between">
+                            <span class="font-semibold">{{ $d['date']->format('n/j (D)') }}</span>
+                            <span class="text-sm">
+                                合計 <b>{{ $h }}時間{{ str_pad($m,2,'0',STR_PAD_LEFT) }}分</b>
+                                @if ($d['segments']->count() > 1)<span class="ml-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">{{ $d['segments']->count() }}回に分割</span>@endif
+                            </span>
+                        </div>
+                        @foreach ($d['segments'] as $r)
+                            <div class="flex items-center justify-between border-t py-1 text-sm text-slate-600 first:border-0">
+                                <span>🛏 {{ $r->bed_at->format('n/j H:i') }} → ☀️ {{ $r->wake_at->format('n/j H:i') }}（{{ $r->hoursLabel() }}）@if($r->note)<span class="text-xs text-slate-400">／{{ $r->note }}</span>@endif</span>
+                                <form method="POST" action="{{ route('sleep.destroy', $r) }}" onsubmit="return confirm('この区間を削除しますか?')">
                                     @csrf @method('DELETE')
                                     <button class="text-xs text-rose-400 hover:underline">削除</button>
                                 </form>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5" class="py-3 text-center text-slate-400">記録がありません</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+                            </div>
+                        @endforeach
+                    </div>
+                @empty
+                    <p class="py-3 text-center text-slate-400">記録がありません</p>
+                @endforelse
+            </div>
         </div>
     </div>
 </div>
