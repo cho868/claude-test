@@ -50,7 +50,23 @@ class FitnessController extends Controller
             'byActivity' => $byActivity,
             'challenges' => $challenges,
             'latestWeight' => $weights->first(),
+            // ソロ目標
+            'targetWeight' => $user->target_weight_kg ? (float) $user->target_weight_kg : null,
+            'weeklyGoal' => $user->weekly_exercise_goal,
+            'startWeight' => $weights->last()?->weight_kg ? (float) $weights->last()->weight_kg : null,
         ]);
+    }
+
+    public function updateGoal(Request $request)
+    {
+        $data = $request->validate([
+            'target_weight_kg' => ['nullable', 'numeric', 'min:1', 'max:400'],
+            'weekly_exercise_goal' => ['nullable', 'integer', 'min:0', 'max:10080'],
+        ]);
+
+        $request->user()->update($data);
+
+        return back()->with('status', '目標を更新しました🎯');
     }
 
     public function storeWeight(Request $request, PointService $points)

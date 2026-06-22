@@ -104,6 +104,7 @@
                     <li class="flex items-center justify-between text-sm {{ $member->id === $user->id ? 'font-bold text-amber-600' : '' }}">
                         <span class="flex items-center gap-2">
                             <span class="w-5 text-right text-slate-400">{{ $i + 1 }}</span>
+                            <x-avatar :user="$member" :size="24" />
                             {{ $member->name }}
                             <x-title-badge :title="$member->currentTitle()" />
                         </span>

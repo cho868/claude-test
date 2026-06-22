@@ -20,6 +20,13 @@ class User extends Authenticatable
         'avatar',
         'discord_id',
         'steam_id',
+        'avatar_style',
+        'avatar_emoji',
+        'avatar_color',
+        'avatar_variant',
+        'avatar_seed',
+        'target_weight_kg',
+        'weekly_exercise_goal',
     ];
 
     protected $hidden = [
@@ -34,7 +41,24 @@ class User extends Authenticatable
             'last_login_date' => 'date',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'target_weight_kg' => 'decimal:2',
+            'weekly_exercise_goal' => 'integer',
         ];
+    }
+
+    /** DiceBear（自動生成イラスト）のURL。アップロード不要・著作権フリー。 */
+    public function avatarDicebearUrl(): string
+    {
+        $variant = $this->avatar_variant ?: 'fun-emoji';
+        $seed = rawurlencode($this->avatar_seed ?: $this->name);
+
+        return "https://api.dicebear.com/9.x/{$variant}/svg?seed={$seed}";
+    }
+
+    /** 名前の頭文字（絵文字未設定時のフォールバック） */
+    public function initial(): string
+    {
+        return mb_strtoupper(mb_substr(trim($this->name), 0, 1)) ?: '?';
     }
 
     public function title(): BelongsTo

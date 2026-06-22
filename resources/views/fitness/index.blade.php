@@ -7,6 +7,72 @@
     <a href="{{ route('challenges.index') }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">🏁 チャレンジ一覧</a>
 </div>
 
+{{-- ソロ目標 --}}
+<div class="mb-6 rounded-2xl bg-white p-5 shadow-sm">
+    <div class="grid gap-5 md:grid-cols-2">
+        {{-- 進捗 --}}
+        <div>
+            <h3 class="mb-3 font-bold">🎯 マイ目標(1人でもOK)</h3>
+            @php $cur = $latestWeight?->weight_kg ? (float) $latestWeight->weight_kg : null; @endphp
+            {{-- 体重目標 --}}
+            <div class="mb-3">
+                <div class="mb-1 flex justify-between text-sm">
+                    <span>体重</span>
+                    <span class="text-slate-500">
+                        @if ($cur !== null) 現在 {{ $cur }}kg @else 未記録 @endif
+                        @if ($targetWeight) / 目標 {{ $targetWeight }}kg @endif
+                    </span>
+                </div>
+                @php
+                    $wp = 0;
+                    if ($targetWeight && $cur !== null && $startWeight !== null && abs($startWeight - $targetWeight) > 0.01) {
+                        $wp = (int) min(100, max(0, round(($startWeight - $cur) / ($startWeight - $targetWeight) * 100)));
+                    } elseif ($targetWeight && $cur !== null && $cur <= $targetWeight) {
+                        $wp = 100;
+                    }
+                @endphp
+                <div class="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div class="h-full rounded-full bg-blue-500" style="width: {{ $targetWeight ? $wp : 0 }}%"></div>
+                </div>
+                @if ($targetWeight && $cur !== null)
+                    <p class="mt-1 text-xs text-slate-500">
+                        @if ($cur <= $targetWeight) 🎉 目標達成！ @else 目標まであと {{ round($cur - $targetWeight, 1) }}kg @endif
+                    </p>
+                @endif
+            </div>
+            {{-- 週間運動目標 --}}
+            <div>
+                <div class="mb-1 flex justify-between text-sm">
+                    <span>今週の運動</span>
+                    <span class="text-slate-500">{{ $weekMinutes }}分 @if ($weeklyGoal) / 目標 {{ $weeklyGoal }}分 @endif</span>
+                </div>
+                @php $ep = $weeklyGoal ? (int) min(100, round($weekMinutes / max(1, $weeklyGoal) * 100)) : 0; @endphp
+                <div class="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div class="h-full rounded-full bg-orange-500" style="width: {{ $ep }}%"></div>
+                </div>
+                @if ($weeklyGoal)
+                    <p class="mt-1 text-xs text-slate-500">{{ $weekMinutes >= $weeklyGoal ? '🎉 今週の目標クリア！' : '達成率 ' . $ep . '%' }}</p>
+                @endif
+            </div>
+        </div>
+        {{-- 目標設定 --}}
+        <form method="POST" action="{{ route('fitness.goal') }}" class="space-y-3 rounded-xl bg-slate-50 p-4 text-sm">
+            @csrf
+            <p class="font-semibold text-slate-600">目標を設定</p>
+            <div class="flex items-center gap-2">
+                <label class="w-28">目標体重</label>
+                <input type="number" step="0.1" name="target_weight_kg" value="{{ $targetWeight }}" placeholder="例 62.0" class="w-28 rounded-lg border-slate-300 shadow-sm"> kg
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="w-28">週の運動目標</label>
+                <input type="number" name="weekly_exercise_goal" value="{{ $weeklyGoal }}" placeholder="例 150" class="w-28 rounded-lg border-slate-300 shadow-sm"> 分
+            </div>
+            <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700">目標を保存</button>
+            <p class="text-xs text-slate-400">空欄にすると目標を解除できます。</p>
+        </form>
+    </div>
+</div>
+
 <div class="grid gap-6 lg:grid-cols-3">
     {{-- 記録フォーム --}}
     <div class="space-y-6">

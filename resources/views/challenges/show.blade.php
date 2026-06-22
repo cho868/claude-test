@@ -50,8 +50,9 @@
             @php $pct = $best > 0 ? max(2, round($row['value'] / $best * 100)) : 0; @endphp
             <div class="mb-3 {{ $row['user']->id === auth()->id() ? 'rounded-lg bg-amber-50 p-2' : '' }}">
                 <div class="mb-1 flex items-center justify-between text-sm">
-                    <span class="font-medium">
+                    <span class="flex items-center gap-2 font-medium">
                         <span class="inline-block w-6">{{ $medals[$i] ?? ($i + 1) }}</span>
+                        <x-avatar :user="$row['user']" :size="24" />
                         {{ $row['user']->name }}
                     </span>
                     <span class="text-slate-500">

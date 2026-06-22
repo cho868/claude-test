@@ -52,6 +52,7 @@ Route::middleware('auth')->group(function () {
 
     // フィットネス(体重・運動の記録と可視化)
     Route::get('fitness', [FitnessController::class, 'index'])->name('fitness.index');
+    Route::post('fitness/goal', [FitnessController::class, 'updateGoal'])->name('fitness.goal');
     Route::post('fitness/weight', [FitnessController::class, 'storeWeight'])->name('fitness.weight.store');
     Route::post('fitness/exercise', [FitnessController::class, 'storeExercise'])->name('fitness.exercise.store');
     Route::delete('fitness/weight/{weight}', [FitnessController::class, 'destroyWeight'])->name('fitness.weight.destroy');

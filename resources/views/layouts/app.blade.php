@@ -48,6 +48,7 @@
                 <div class="flex items-center gap-3">
                     @auth
                         <a href="{{ route('profile.edit') }}" class="flex items-center gap-2 text-sm hover:opacity-80">
+                            <x-avatar :user="auth()->user()" :size="28" />
                             <span class="hidden sm:inline">{{ auth()->user()->name }}</span>
                             <span class="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-slate-900">
                                 {{ number_format(auth()->user()->points) }}pt

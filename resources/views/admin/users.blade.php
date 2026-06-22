@@ -18,7 +18,7 @@
         <tbody>
             @foreach ($users as $u)
                 <tr class="border-b last:border-0">
-                    <td class="py-2 font-medium">{{ $u->name }}</td>
+                    <td class="py-2 font-medium"><span class="flex items-center gap-2"><x-avatar :user="$u" :size="24" /> {{ $u->name }}</span></td>
                     <td class="text-slate-500">{{ $u->email }}</td>
                     <td><x-title-badge :title="$u->currentTitle()" /></td>
                     <td class="text-right">{{ number_format($u->points) }}</td>
