@@ -6,39 +6,58 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', '身内ポータル') | {{ config('app.name') }}</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
     <style>[x-cloak]{display:none}</style>
 </head>
 <body class="h-full bg-slate-100 text-slate-800">
 <div class="min-h-full">
     <nav class="bg-slate-900 text-slate-100">
         <div class="mx-auto max-w-6xl px-4">
-            <div class="flex h-14 items-center justify-between">
-                <div class="flex items-center gap-6">
+            <div class="flex min-h-14 flex-wrap items-center justify-between gap-2 py-2">
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
                     <a href="{{ route('dashboard') }}" class="text-lg font-bold tracking-tight">
                         🏠 {{ config('app.name') }}
                     </a>
-                    <div class="hidden gap-1 md:flex text-sm">
-                        @php
-                            $nav = [
+                    @php
+                        $menu = [
+                            'ゲーム' => ['🎮', [
                                 'tournaments.index' => ['🏆', 'トーナメント'],
                                 'tierlists.index'   => ['📊', 'Tierリスト'],
-                                'memos.index'       => ['📝', 'メモ'],
-                                'sleep.index'       => ['😴', '睡眠'],
                                 'games.index'       => ['🎮', 'ゲーム時間'],
                                 'matches.index'     => ['⚔️', '戦績'],
-                                'social.index'      => ['📋', 'ソシャゲ'],
-                                'combos.index'      => ['🎯', 'コンボ表'],
-                                'surveys.index'     => ['🗳️', 'アンケート'],
-                                'schedule.index'    => ['📅', '予定'],
-                                'fitness.index'     => ['💪', 'フィットネス'],
-                                'documents.index'   => ['📚', '資料'],
-                            ];
-                        @endphp
-                        @foreach ($nav as $route => [$icon, $label])
-                            <a href="{{ route($route) }}"
-                               class="rounded px-3 py-1.5 hover:bg-slate-700 {{ request()->routeIs(Str::before($route, '.').'*') ? 'bg-slate-700' : '' }}">
-                                {{ $icon }} {{ $label }}
-                            </a>
+                                'social.index'      => ['📋', 'ソシャゲ管理'],
+                                'pokemon.index'     => ['🔴', 'ポケモン計算'],
+                            ]],
+                            'からだ' => ['💪', [
+                                'sleep.index'   => ['😴', '睡眠'],
+                                'fitness.index' => ['💪', 'フィットネス'],
+                            ]],
+                            'みんな' => ['👥', [
+                                'surveys.index'   => ['🗳️', 'アンケート'],
+                                'schedule.index'  => ['📅', '予定'],
+                                'documents.index' => ['📚', '資料'],
+                                'memos.index'     => ['📝', 'メモ'],
+                            ]],
+                        ];
+                    @endphp
+                    <div class="flex flex-wrap items-center gap-1 text-sm">
+                        @foreach ($menu as $cat => [$catIcon, $items])
+                            @php $catActive = collect($items)->keys()->contains(fn ($r) => request()->routeIs(Str::before($r, '.').'*')); @endphp
+                            <div x-data="{open:false}" @click.away="open=false" class="relative">
+                                <button @click="open=!open"
+                                        class="rounded px-3 py-1.5 hover:bg-slate-700 {{ $catActive ? 'bg-slate-700' : '' }}">
+                                    {{ $catIcon }} {{ $cat }} <span class="text-[10px]">▼</span>
+                                </button>
+                                <div x-show="open" x-cloak @click="open=false"
+                                     class="absolute left-0 z-50 mt-1 w-52 overflow-hidden rounded-lg bg-white py-1 text-slate-800 shadow-xl ring-1 ring-black/5">
+                                    @foreach ($items as $route => [$icon, $label])
+                                        <a href="{{ route($route) }}"
+                                           class="block px-4 py-2 hover:bg-slate-100 {{ request()->routeIs(Str::before($route, '.').'*') ? 'bg-slate-100 font-semibold' : '' }}">
+                                            {{ $icon }} {{ $label }}
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </div>
                         @endforeach
                         @if (auth()->user()?->is_admin)
                             <a href="{{ route('admin.index') }}"
@@ -63,11 +82,6 @@
                         </form>
                     @endauth
                 </div>
-            </div>
-            <div class="flex gap-1 overflow-x-auto pb-2 text-xs md:hidden">
-                @foreach ($nav as $route => [$icon, $label])
-                    <a href="{{ route($route) }}" class="whitespace-nowrap rounded px-2 py-1 hover:bg-slate-700">{{ $icon }} {{ $label }}</a>
-                @endforeach
             </div>
         </div>
     </nav>
