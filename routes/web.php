@@ -4,9 +4,11 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChallengeController;
+use App\Http\Controllers\ComboController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FitnessController;
 use App\Http\Controllers\MatchRecordController;
+use App\Http\Controllers\SocialGameController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\GameSessionController;
 use App\Http\Controllers\MemoController;
@@ -68,6 +70,19 @@ Route::middleware('auth')->group(function () {
     Route::get('matches', [MatchRecordController::class, 'index'])->name('matches.index');
     Route::post('matches', [MatchRecordController::class, 'store'])->name('matches.store');
     Route::delete('matches/{match}', [MatchRecordController::class, 'destroy'])->name('matches.destroy');
+
+    // スト6 コンボ表(始動 × ヒット状況)
+    Route::get('combos', [ComboController::class, 'index'])->name('combos.index');
+    Route::post('combos', [ComboController::class, 'store'])->name('combos.store');
+    Route::delete('combos/{combo}', [ComboController::class, 'destroy'])->name('combos.destroy');
+
+    // ソシャゲ管理(日課/週課/月課チェックリスト)
+    Route::get('social-games', [SocialGameController::class, 'index'])->name('social.index');
+    Route::post('social-games', [SocialGameController::class, 'storeGame'])->name('social.games.store');
+    Route::delete('social-games/{game}', [SocialGameController::class, 'destroyGame'])->name('social.games.destroy');
+    Route::post('social-games/{game}/tasks', [SocialGameController::class, 'storeTask'])->name('social.tasks.store');
+    Route::delete('social-games/tasks/{task}', [SocialGameController::class, 'destroyTask'])->name('social.tasks.destroy');
+    Route::post('social-games/tasks/{task}/toggle', [SocialGameController::class, 'toggle'])->name('social.tasks.toggle');
 
     // 管理者エリア
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {

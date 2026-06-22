@@ -131,6 +131,16 @@ class User extends Authenticatable
         return $this->hasMany(MatchRecord::class);
     }
 
+    public function gameRoutines(): HasMany
+    {
+        return $this->hasMany(GameRoutine::class);
+    }
+
+    public function comboEntries(): HasMany
+    {
+        return $this->hasMany(ComboEntry::class);
+    }
+
     /**
      * 現在のポイントで到達できる最高位の称号。
      */
