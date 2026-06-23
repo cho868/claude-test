@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FitnessController;
+use App\Http\Controllers\LinkController;
 use App\Http\Controllers\MatchRecordController;
 use App\Http\Controllers\PokemonController;
 use App\Http\Controllers\SocialGameController;
@@ -74,6 +75,12 @@ Route::middleware('auth')->group(function () {
 
     // ポケモン ダメージ計算(チャンピオンズ対応・クライアント計算)
     Route::get('pokemon', [PokemonController::class, 'index'])->name('pokemon.index');
+
+    // リンク集(身内で共有するブックマーク)
+    Route::get('links', [LinkController::class, 'index'])->name('links.index');
+    Route::post('links', [LinkController::class, 'store'])->name('links.store');
+    Route::put('links/{link}', [LinkController::class, 'update'])->name('links.update');
+    Route::delete('links/{link}', [LinkController::class, 'destroy'])->name('links.destroy');
 
     // ソシャゲ管理(日課/週課/月課チェックリスト)
     Route::get('social-games', [SocialGameController::class, 'index'])->name('social.index');

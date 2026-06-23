@@ -54,6 +54,7 @@
                         ['schedule.index', '📅', 'スケジュール共有', '予定と出欠管理'],
                         ['fitness.index', '💪', 'フィットネス', '体重・運動を記録して競う'],
                         ['documents.index', '📚', '資料/ナレッジ', '手順書をMarkdownで共有'],
+                        ['links.index', '🔗', 'リンク集', '共同編集ツール等の入口'],
                         ['profile.edit', '⚙️', 'プロフィール', 'Discord/Steam連携'],
                     ];
                     if (auth()->user()->is_admin) {

@@ -37,6 +37,7 @@
                                 'schedule.index'  => ['📅', '予定'],
                                 'documents.index' => ['📚', '資料'],
                                 'memos.index'     => ['📝', 'メモ'],
+                                'links.index'     => ['🔗', 'リンク集'],
                             ]],
                         ];
                     @endphp
