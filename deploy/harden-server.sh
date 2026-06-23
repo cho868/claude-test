@@ -43,7 +43,15 @@ CONF
 echo "==> nginx セキュリティヘッダを配置"
 if [ -f "${HERE}/security-headers.conf" ]; then
   cp "${HERE}/security-headers.conf" /etc/nginx/conf.d/security-headers.conf
-  nginx -t && systemctl reload nginx
+  # 設定が壊れたら即ロールバック（壊れた設定を残すと次回再起動で nginx が落ちる）
+  if nginx -t 2>/dev/null; then
+    systemctl reload nginx
+    echo "    セキュリティヘッダを適用しました。"
+  else
+    rm -f /etc/nginx/conf.d/security-headers.conf
+    echo "    ⚠️ 設定テストに失敗したため、ヘッダ設定をロールバックしました（nginxは無傷）。"
+    echo "       詳細: sudo nginx -t"
+  fi
 fi
 
 echo ""
