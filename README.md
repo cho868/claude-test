@@ -85,6 +85,7 @@ sudo bash deploy/deploy-app.sh main # 取得 → composer → migrate → 最適
 - **[deploy/DEPLOY.md](deploy/DEPLOY.md)** … 構築・再構築・更新・トラブルシュート
 - **[deploy/NOTIFY.md](deploy/NOTIFY.md)** … 通知・死活監視（no-ip / Let's Encrypt / XServer の期限を毎日Discord通知）
 - **[deploy/SECURITY.md](deploy/SECURITY.md)** … セキュリティ懸念・対策・監視。`deploy/harden-server.sh` で fail2ban / 自動更新 / セキュリティヘッダを導入
+- **[deploy/TROUBLESHOOTING.md](deploy/TROUBLESHOOTING.md)** … サイトが落ちた時の自己診断・修正ナレッジ（症状→診断→原因→直し方をパターン別に記録）
 
 セキュリティ補足:
 - 新規登録は `REGISTRATION_INVITE_CODE` を設定すると招待コード必須（野良登録を防止）

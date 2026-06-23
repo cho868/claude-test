@@ -34,6 +34,7 @@ class DocumentSeeder extends Seeder
             'deploy/DEPLOY.md'   => ['身内ポータル 構築・再構築 手順書', 'サーバー'],
             'deploy/NOTIFY.md'   => ['通知と死活監視（no-ip / SSL / XServer）の設定', '運用'],
             'deploy/SECURITY.md' => ['セキュリティ：懸念点・対策・監視', 'セキュリティ'],
+            'deploy/TROUBLESHOOTING.md' => ['トラブル対応ナレッジ（サイトが落ちた時の直し方）', '運用'],
         ];
 
         foreach ($docs as $path => [$title, $category]) {
