@@ -20,6 +20,7 @@ class SetupTaskSeeder extends Seeder
             ['key' => 'backup_cron',    'category' => '運用', 'title' => 'DBの定期バックアップ(cron)を設定', 'description' => 'SQLite を毎日コピー（DEPLOY.md）'],
             ['key' => 'trial_date',     'category' => '運用', 'title' => '体験終了日を控えて通知に設定', 'description' => '/etc/portal-notify.conf の TRIAL_END'],
             ['key' => 'noip_confirm',   'category' => '運用', 'title' => 'no-ip の30日確認を運用に組み込む', 'description' => '毎日のDiscord通知でリマインド'],
+            ['key' => 'uptime_monitor', 'category' => '運用', 'title' => '外形監視(UptimeRobot)を設定', 'description' => '外からURLを叩いてnginx停止/到達不可を検知。/health を監視（NOTIFY.md）'],
             // 開発バックログ（やりたい機能の控え）
             ['key' => 'bl_pokemon_calc',  'category' => '開発バックログ', 'title' => 'ポケモン ダメージ計算（チャンピオンズ仕様）', 'description' => '正式仕様を確認してから実装。標準ダメージ式＋タイプ相性'],
             ['key' => 'bl_swiss',         'category' => '開発バックログ', 'title' => 'トーナメントにスイスドロー形式を追加', 'description' => 'スコアでペアリング・順位表'],

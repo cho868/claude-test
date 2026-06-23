@@ -132,3 +132,46 @@ no-ip の無料ホスト名だけは **約30日ごとに確認メールのクリ
    - 応答メッセージ等の自動返信が邪魔なら、4の画面で「応答メッセージ」をオフに
 
 > まとめ: **手軽さは Discord ＞ LINE**。まず Discord で運用し、LINEも欲しくなったら C を足す、で十分です。
+
+---
+
+## 🌐 外形監視（外から「ページが生きているか」を見る）
+
+> ⚠️ 重要な落とし穴: 上の **healthchecks.io（死活監視）はサーバーから ping を送る方式**なので、
+> **サーバーは生きているが nginx だけ落ちている**ケース（＝サイトは `ERR_CONNECTION_REFUSED`、でも cron は動くので ping は届く）を**検知できません**。
+> 「ページが外から見えるか」は、**外部からURLを叩く"外形監視"**で見る必要があります。
+
+### なぜ「同じサーバー内の別ヘルスページ」では不十分か
+nginx 自体が落ちると、同じサーバーに置いた `/var/www/health` のような別ページも**一緒に落ちます**（同じ nginx が配信するため）。
+→ 「外から生死を判定する」には、**別の場所（外部サービス）からURLを叩く**のが正解です。
+
+### おすすめ: UptimeRobot（無料・外形監視 + ステータスページ）
+1. https://uptimerobot.com/ に無料登録
+2. **Add New Monitor** → Type: **HTTP(s)** → URL に公開URL（例 `https://madgear.sytes.net/health`）
+   - 監視間隔: 無料で5分ごと
+3. **Alert Contacts** にメール / Discord 等を登録（落ちたら通知）
+4. （任意）**Status Page** を作成すると、`https://stats.uptimerobot.com/xxxx` のような
+   **外部ホストの公開ステータスページ**が手に入る（ポータルが落ちても見られる）
+
+これで「サイトが外から見えなくなった瞬間」に通知が届きます。
+
+### PHP非依存のヘルスURL `/health`
+本リポジトリの nginx 設定には `location = /health` を用意済み（`setup-server.sh` が生成）。
+これは **PHP/Laravel を介さず nginx が直接 200 を返す**ので、
+「nginx は生きているが PHP/アプリが壊れている」状態の切り分けにも使えます。
+
+既存サーバーに後から足す場合は、`/etc/nginx/sites-available/portal` の `server { }` 内に1行追加:
+```nginx
+location = /health { default_type text/plain; return 200 "ok\n"; }
+```
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+curl -i http://localhost/health   # ok が返ればOK
+```
+
+### まとめ（3層で監視）
+| 層 | ツール | 検知できるもの |
+|----|--------|----------------|
+| サーバー死活 | healthchecks.io（内→外ping） | サーバー停止・cron停止・体験終了 |
+| **外形監視** | **UptimeRobot（外→内HTTP）** | **nginx停止・SSL切れ・サイト到達不可** |
+| 期限通知 | 毎日Discord | 体験/no-ip/SSLの期限リマインド |

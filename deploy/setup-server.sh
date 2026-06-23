@@ -67,6 +67,9 @@ server {
     location = /favicon.ico { access_log off; log_not_found off; }
     location = /robots.txt  { access_log off; log_not_found off; }
 
+    # PHP非依存のヘルスチェック（nginxが生きていれば常に200を返す）。外形監視用。
+    location = /health { default_type text/plain; add_header Cache-Control "no-store"; return 200 "ok\n"; }
+
     error_page 404 /index.php;
 
     location ~ \.php\$ {
