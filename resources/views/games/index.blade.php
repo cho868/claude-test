@@ -6,7 +6,7 @@
     $fmt = fn ($min) => intdiv($min, 60) . '時間' . str_pad($min % 60, 2, '0', STR_PAD_LEFT) . '分';
 @endphp
 
-<h2 class="mb-4 text-2xl font-bold">🎮 ゲームプレイ時間</h2>
+<x-page-header title="ゲームプレイ時間" icon="🎮" />
 
 <div class="grid gap-6 lg:grid-cols-3">
     <div class="space-y-6">

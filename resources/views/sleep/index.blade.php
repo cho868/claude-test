@@ -2,7 +2,7 @@
 @section('title', '睡眠時間チェック')
 
 @section('content')
-<h2 class="mb-4 text-2xl font-bold">😴 睡眠時間チェック</h2>
+<x-page-header title="睡眠時間チェック" icon="😴" />
 
 <div class="grid gap-6 lg:grid-cols-3">
     {{-- 記録フォーム --}}

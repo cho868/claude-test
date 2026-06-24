@@ -5,33 +5,34 @@
 <div class="grid gap-6 lg:grid-cols-3">
     {{-- 左: マイステータス --}}
     <div class="space-y-6 lg:col-span-2">
-        <div class="rounded-2xl bg-white p-6 shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-slate-500">こんにちは</p>
-                    <h2 class="text-2xl font-bold">{{ $user->name }} さん</h2>
-                    <div class="mt-2">
-                        <x-title-badge :title="$currentTitle" />
+        <div class="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 p-6 text-white shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex min-w-0 items-center gap-4">
+                    <x-avatar :user="$user" :size="56" />
+                    <div class="min-w-0">
+                        <p class="text-xs text-slate-300">おかえりなさい</p>
+                        <h2 class="truncate text-2xl font-bold">{{ $user->name }}</h2>
+                        <div class="mt-1"><x-title-badge :title="$currentTitle" /></div>
                     </div>
                 </div>
-                <div class="text-right">
-                    <p class="text-3xl font-extrabold text-amber-500">{{ number_format($user->points) }}<span class="text-base">pt</span></p>
-                    <p class="text-xs text-slate-500">連続ログイン {{ $user->login_streak }} 日 / 累計 {{ $user->total_logins }} 回</p>
+                <div class="shrink-0 text-right">
+                    <p class="text-3xl font-extrabold text-amber-400">{{ number_format($user->points) }}<span class="text-base">pt</span></p>
+                    <p class="text-xs text-slate-300">🔥 連続 {{ $user->login_streak }}日 / 累計 {{ $user->total_logins }}回</p>
                 </div>
             </div>
 
             {{-- 称号の進捗バー --}}
             <div class="mt-5">
                 @if ($nextTitle)
-                    <div class="mb-1 flex justify-between text-xs text-slate-500">
+                    <div class="mb-1 flex justify-between text-xs text-slate-300">
                         <span>次の称号: {{ $nextTitle->icon }} {{ $nextTitle->name }}</span>
                         <span>あと {{ number_format($nextTitle->required_points - $user->points) }}pt</span>
                     </div>
-                    <div class="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+                    <div class="h-3 w-full overflow-hidden rounded-full bg-slate-600/50">
                         <div class="h-full rounded-full bg-gradient-to-r from-amber-400 to-rose-500" style="width: {{ $progress }}%"></div>
                     </div>
                 @else
-                    <p class="text-sm font-semibold text-rose-500">🎉 最高位の称号に到達しています！</p>
+                    <p class="text-sm font-semibold text-amber-300">🎉 最高位の称号に到達しています！</p>
                 @endif
             </div>
         </div>

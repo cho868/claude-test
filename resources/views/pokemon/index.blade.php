@@ -3,7 +3,7 @@
 
 @section('content')
 <div class="mx-auto max-w-3xl">
-    <h2 class="mb-1 text-2xl font-bold">🔴 ポケモン ダメージ計算</h2>
+    <x-page-header title="ポケモン ダメージ計算" icon="🔴" />
     <p class="mb-4 text-sm text-slate-500">
         ポケモンチャンピオンズ仕様（<b>Lv50固定</b>）に合わせた計算機。実数値（攻撃/防御）と技威力を入れると、
         タイプ相性・タイプ一致・急所などを反映してダメージと確定数を表示します。

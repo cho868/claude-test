@@ -2,7 +2,7 @@
 @section('title', '戦績')
 
 @section('content')
-<h2 class="mb-4 text-2xl font-bold">⚔️ 対戦ゲーム戦績</h2>
+<x-page-header title="対戦ゲーム戦績" icon="⚔️" />
 
 <div class="grid gap-6 lg:grid-cols-3">
     {{-- 記録フォーム --}}

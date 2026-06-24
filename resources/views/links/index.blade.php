@@ -2,8 +2,7 @@
 @section('title', 'リンク集')
 
 @section('content')
-<h2 class="mb-1 text-2xl font-bold">🔗 リンク集</h2>
-<p class="mb-4 text-sm text-slate-500">身内で使う外部サービス（共同編集・スプレッドシート・各種ツール）への入口をまとめます。</p>
+<x-page-header title="リンク集" icon="🔗" subtitle="身内で使う外部サービス(共同編集・スプレッドシート・各種ツール)への入口をまとめます。" />
 
 {{-- 追加フォーム --}}
 <details class="mb-6 rounded-2xl bg-white p-5 shadow-sm">
