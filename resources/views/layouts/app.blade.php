@@ -89,17 +89,24 @@
 
     <main class="mx-auto max-w-6xl px-4 py-6">
         @if (session('status'))
-            <div class="mb-4 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                {{ session('status') }}
+            <div x-data="{show:true}" x-show="show" x-init="setTimeout(() => show = false, 5000)" x-transition
+                 class="mb-4 flex items-start justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm">
+                <span>✅ {{ session('status') }}</span>
+                <button @click="show=false" class="shrink-0 text-emerald-500 hover:text-emerald-800">✕</button>
             </div>
         @endif
         @if ($errors->any())
-            <div class="mb-4 rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                <ul class="list-inside list-disc">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+            <div x-data="{show:true}" x-show="show" x-transition
+                 class="mb-4 flex items-start justify-between gap-3 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-sm">
+                <div>
+                    <p class="mb-1 font-semibold">⚠️ 入力を確認してください</p>
+                    <ul class="list-inside list-disc">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                <button @click="show=false" class="shrink-0 text-rose-400 hover:text-rose-700">✕</button>
             </div>
         @endif
 

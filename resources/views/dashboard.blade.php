@@ -36,38 +36,53 @@
             </div>
         </div>
 
-        {{-- ツール一覧 --}}
+        {{-- ツール一覧（カテゴリ別） --}}
         <div>
             <h3 class="mb-3 text-lg font-bold">🧰 便利ツール</h3>
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                @php
-                    $tools = [
-                        ['tournaments.index', '🏆', 'トーナメント作成', '対戦表を自動生成'],
+            @php
+                $groups = [
+                    '🎮 ゲーム' => [
+                        ['tournaments.index', '🏆', 'トーナメント', '対戦表を自動生成'],
                         ['tierlists.index', '📊', 'Tierリスト', 'Tierリストを作成・共有'],
-                        ['memos.index', '📝', 'GMQ2メモ', '攻略メモを共有'],
-                        ['sleep.index', '😴', '睡眠時間チェック', '睡眠を記録・可視化'],
                         ['games.index', '🎮', 'ゲーム時間', 'Steam連携 / 手動記録'],
-                        ['matches.index', '⚔️', '戦績', '対戦の勝敗を記録・勝率'],
-                        ['social.index', '📋', 'ソシャゲ管理', '日課/週課/月課チェック'],
-                        ['pokemon.index', '🔴', 'ポケモン ダメージ計算', 'チャンピオンズ対応の計算機'],
+                        ['matches.index', '⚔️', '戦績', '勝敗を記録・勝率'],
+                        ['social.index', '📋', 'ソシャゲ管理', '日課/週課/月課'],
+                        ['pokemon.index', '🔴', 'ポケモン計算', 'ダメージ計算機'],
+                    ],
+                    '💪 からだ' => [
+                        ['sleep.index', '😴', '睡眠', '記録・グラフ化'],
+                        ['fitness.index', '💪', 'フィットネス', '体重/運動・チャレンジ'],
+                    ],
+                    '👥 みんな' => [
                         ['surveys.index', '🗳️', 'アンケート', 'みんなで投票'],
-                        ['schedule.index', '📅', 'スケジュール共有', '予定と出欠管理'],
-                        ['fitness.index', '💪', 'フィットネス', '体重・運動を記録して競う'],
-                        ['documents.index', '📚', '資料/ナレッジ', '手順書をMarkdownで共有'],
-                        ['links.index', '🔗', 'リンク集', '共同編集ツール等の入口'],
-                        ['profile.edit', '⚙️', 'プロフィール', 'Discord/Steam連携'],
-                    ];
-                    if (auth()->user()->is_admin) {
-                        $tools[] = ['admin.index', '🛠️', '管理', 'チェックリスト/ユーザー管理'];
-                    }
-                @endphp
-                @foreach ($tools as [$route, $icon, $name, $desc])
-                    <a href="{{ route($route) }}"
-                       class="group rounded-2xl bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                        <div class="text-2xl">{{ $icon }}</div>
-                        <p class="mt-1 font-semibold group-hover:text-slate-900">{{ $name }}</p>
-                        <p class="text-xs text-slate-500">{{ $desc }}</p>
-                    </a>
+                        ['schedule.index', '📅', '予定', '予定と出欠管理'],
+                        ['documents.index', '📚', '資料', '手順書を共有'],
+                        ['memos.index', '📝', 'メモ', '攻略メモを共有'],
+                        ['links.index', '🔗', 'リンク集', 'ツールへの入口'],
+                    ],
+                    '⚙️ その他' => array_values(array_filter([
+                        ['profile.edit', '⚙️', 'プロフィール', 'アイコン/連携設定'],
+                        auth()->user()->is_admin ? ['admin.index', '🛠️', '管理', 'チェックリスト/ユーザー'] : null,
+                    ])),
+                ];
+            @endphp
+            <div class="space-y-4">
+                @foreach ($groups as $label => $items)
+                    <div>
+                        <p class="mb-2 text-xs font-bold text-slate-400">{{ $label }}</p>
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach ($items as [$route, $icon, $name, $desc])
+                                <a href="{{ route($route) }}"
+                                   class="group flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                                    <div class="text-2xl">{{ $icon }}</div>
+                                    <div class="min-w-0">
+                                        <p class="font-semibold group-hover:text-slate-900">{{ $name }}</p>
+                                        <p class="truncate text-xs text-slate-500">{{ $desc }}</p>
+                                    </div>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
                 @endforeach
             </div>
         </div>
