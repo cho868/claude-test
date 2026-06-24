@@ -22,7 +22,6 @@ class SetupTaskSeeder extends Seeder
             ['key' => 'noip_confirm',   'category' => '運用', 'title' => 'no-ip の30日確認を運用に組み込む', 'description' => '毎日のDiscord通知でリマインド'],
             ['key' => 'uptime_monitor', 'category' => '運用', 'title' => '外形監視(UptimeRobot)を設定', 'description' => '外からURLを叩いてnginx停止/到達不可を検知。/health を監視（NOTIFY.md）'],
             // 開発バックログ（やりたい機能の控え）
-            ['key' => 'bl_pokemon_calc',  'category' => '開発バックログ', 'title' => 'ポケモン ダメージ計算（チャンピオンズ仕様）', 'description' => '正式仕様を確認してから実装。標準ダメージ式＋タイプ相性'],
             ['key' => 'bl_swiss',         'category' => '開発バックログ', 'title' => 'トーナメントにスイスドロー形式を追加', 'description' => 'スコアでペアリング・順位表'],
             ['key' => 'bl_match_vs',      'category' => '開発バックログ', 'title' => '戦績: 身内ユーザー同士の対戦成績表', 'description' => '誰が誰に強いか（相手を登録ユーザーから選択）'],
             ['key' => 'bl_weight_overlay','category' => '開発バックログ', 'title' => 'フィットネス: 全員の体重推移を重ねたグラフ', 'description' => 'チャレンジ参加者の推移を比較'],
