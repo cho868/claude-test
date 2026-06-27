@@ -4,7 +4,8 @@
 @section('content')
 <div class="mb-4 flex items-center justify-between">
     <h2 class="text-2xl font-bold">🛠️ 管理ダッシュボード</h2>
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
+        <a href="{{ route('admin.bot') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold hover:bg-slate-200">🤖 Bot設定</a>
         <a href="{{ route('admin.server') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold hover:bg-slate-200">🖥️ サーバー状況</a>
         <a href="{{ route('admin.users') }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">👥 ユーザー管理</a>
     </div>

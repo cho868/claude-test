@@ -35,6 +35,7 @@ class DocumentSeeder extends Seeder
             'deploy/NOTIFY.md'   => ['通知と死活監視（no-ip / SSL / XServer）の設定', '運用'],
             'deploy/SECURITY.md' => ['セキュリティ：懸念点・対策・監視', 'セキュリティ'],
             'deploy/TROUBLESHOOTING.md' => ['トラブル対応ナレッジ（サイトが落ちた時の直し方）', '運用'],
+            'docs/ADMIN_API.md' => ['Discord Bot 管理API 仕様（ポータル連携）', '運用'],
         ];
 
         foreach ($docs as $path => [$title, $category]) {

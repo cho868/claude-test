@@ -47,4 +47,11 @@ return [
         'client_secret' => env('DISCORD_CLIENT_SECRET'),
     ],
 
+    // Discord Bot 管理API（同一VPSのlocalhostで動くBotの設定を中継編集）
+    // ADMIN_KEY はサーバー側にのみ保持し、ブラウザには出さない
+    'discord_bot' => [
+        'url' => env('BOT_ADMIN_URL', 'http://localhost:3000'),
+        'key' => env('BOT_ADMIN_KEY'),
+    ],
+
 ];

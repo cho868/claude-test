@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\BotController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChallengeController;
@@ -97,6 +98,9 @@ Route::middleware('auth')->group(function () {
         Route::post('tasks/{task}/toggle', [AdminController::class, 'toggleTask'])->name('tasks.toggle');
         Route::get('users', [AdminController::class, 'users'])->name('users');
         Route::post('users/{user}/toggle-admin', [AdminController::class, 'toggleAdmin'])->name('users.toggle-admin');
+        // Discord Bot 設定（localhost:3000 をサーバー側で中継）
+        Route::get('bot', [BotController::class, 'index'])->name('bot');
+        Route::post('bot', [BotController::class, 'update'])->name('bot.update');
     });
 
     // トーナメント作成ツール
