@@ -24,6 +24,7 @@
                                 'tournaments.index' => ['🏆', 'トーナメント'],
                                 'tierlists.index'   => ['📊', 'Tierリスト'],
                                 'games.index'       => ['🎮', 'ゲーム時間'],
+                                'steam.index'       => ['🕹️', 'Steam'],
                                 'matches.index'     => ['⚔️', '戦績'],
                                 'social.index'      => ['📋', 'ソシャゲ管理'],
                                 'pokemon.index'     => ['🔴', 'ポケモン計算'],

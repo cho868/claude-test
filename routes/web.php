@@ -11,6 +11,7 @@ use App\Http\Controllers\LinkController;
 use App\Http\Controllers\MatchRecordController;
 use App\Http\Controllers\PokemonController;
 use App\Http\Controllers\SocialGameController;
+use App\Http\Controllers\SteamController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\GameSessionController;
 use App\Http\Controllers\MemoController;
@@ -76,6 +77,11 @@ Route::middleware('auth')->group(function () {
 
     // ポケモン ダメージ計算(チャンピオンズ対応・クライアント計算)
     Route::get('pokemon', [PokemonController::class, 'index'])->name('pokemon.index');
+
+    // Steam 連携(いまプレイ中 / 実績 / 共通所持 / セール)
+    Route::get('steam', [SteamController::class, 'index'])->name('steam.index');
+    Route::get('steam/achievements', [SteamController::class, 'achievements'])->name('steam.achievements');
+    Route::get('steam/sales', [SteamController::class, 'sales'])->name('steam.sales');
 
     // リンク集(身内で共有するブックマーク)
     Route::get('links', [LinkController::class, 'index'])->name('links.index');

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\GameSession;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -18,6 +19,140 @@ class SteamService
     public static function isConfigured(): bool
     {
         return ! empty(config('services.steam.key'));
+    }
+
+    private function key(): ?string
+    {
+        return config('services.steam.key');
+    }
+
+    /**
+     * 複数ユーザーの現在のオンライン状態/プレイ中ゲームを取得（最大100件・60秒キャッシュ）。
+     * 返り値: steamid => ['personaname','avatar','state'(int),'game'(?string)]
+     */
+    public function playerSummaries(array $steamids): array
+    {
+        $steamids = array_values(array_filter($steamids));
+        if (! self::isConfigured() || empty($steamids)) {
+            return [];
+        }
+
+        $cacheKey = 'steam:summaries:' . md5(implode(',', $steamids));
+
+        return Cache::remember($cacheKey, 60, function () use ($steamids) {
+            $out = [];
+            foreach (array_chunk($steamids, 100) as $chunk) {
+                try {
+                    $res = Http::timeout(12)->get(
+                        'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/',
+                        ['key' => $this->key(), 'steamids' => implode(',', $chunk)],
+                    );
+                    foreach ($res->json('response.players', []) as $p) {
+                        $out[$p['steamid']] = [
+                            'personaname' => $p['personaname'] ?? '',
+                            'avatar' => $p['avatarmedium'] ?? null,
+                            'state' => (int) ($p['personastate'] ?? 0),
+                            'game' => $p['gameextrainfo'] ?? null,
+                        ];
+                    }
+                } catch (\Throwable $e) {
+                    // skip
+                }
+            }
+
+            return $out;
+        });
+    }
+
+    /**
+     * 所持ゲーム（全期間プレイ時間つき）。プロフィール公開が必要。6時間キャッシュ。
+     * 返り値: appid => ['name','playtime'(分)]
+     */
+    public function ownedGames(string $steamid): array
+    {
+        if (! self::isConfigured() || empty($steamid)) {
+            return [];
+        }
+
+        return Cache::remember('steam:owned:' . $steamid, 21600, function () use ($steamid) {
+            try {
+                $res = Http::timeout(15)->get(
+                    'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/',
+                    ['key' => $this->key(), 'steamid' => $steamid, 'include_appinfo' => 1, 'include_played_free_games' => 1],
+                );
+                $games = [];
+                foreach ($res->json('response.games', []) as $g) {
+                    $games[(string) $g['appid']] = [
+                        'name' => $g['name'] ?? ('AppID ' . $g['appid']),
+                        'playtime' => (int) ($g['playtime_forever'] ?? 0),
+                    ];
+                }
+
+                return $games;
+            } catch (\Throwable $e) {
+                return [];
+            }
+        });
+    }
+
+    /**
+     * 特定ゲームの実績取得状況。10分キャッシュ。
+     * 返り値: ['achieved'=>int,'total'=>int,'pct'=>int] / 取得不可は null
+     */
+    public function achievements(string $steamid, string $appid): ?array
+    {
+        if (! self::isConfigured() || empty($steamid) || empty($appid)) {
+            return null;
+        }
+
+        return Cache::remember("steam:ach:{$steamid}:{$appid}", 600, function () use ($steamid, $appid) {
+            try {
+                $res = Http::timeout(12)->get(
+                    'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/',
+                    ['key' => $this->key(), 'steamid' => $steamid, 'appid' => $appid],
+                );
+                if (! $res->json('playerstats.success')) {
+                    return null;
+                }
+                $list = $res->json('playerstats.achievements', []);
+                $total = count($list);
+                if ($total === 0) {
+                    return null;
+                }
+                $achieved = collect($list)->where('achieved', 1)->count();
+
+                return ['achieved' => $achieved, 'total' => $total, 'pct' => (int) round($achieved / $total * 100)];
+            } catch (\Throwable $e) {
+                return null;
+            }
+        });
+    }
+
+    /**
+     * 現在セール中（フィーチャー特集の specials）。Steamストアの非公式エンドポイント。1時間キャッシュ。
+     * 返り値: [['appid','name','discount'(%),'final'(円),'original'(円),'image']]
+     */
+    public function featuredSpecials(): array
+    {
+        return Cache::remember('steam:specials', 3600, function () {
+            try {
+                $res = Http::timeout(15)->get('https://store.steampowered.com/api/featuredcategories', [
+                    'cc' => 'jp', 'l' => 'japanese',
+                ]);
+                $items = $res->json('specials.items', []);
+
+                return collect($items)->map(fn ($i) => [
+                    'appid' => $i['id'] ?? null,
+                    'name' => $i['name'] ?? '',
+                    'discount' => (int) ($i['discount_percent'] ?? 0),
+                    'final' => (int) round(($i['final_price'] ?? 0) / 100),
+                    'original' => (int) round(($i['original_price'] ?? 0) / 100),
+                    'image' => $i['header_image'] ?? ($i['small_capsule_image'] ?? null),
+                ])->filter(fn ($i) => $i['appid'])->values()->all();
+            } catch (\Throwable $e) {
+                return [];
+            }
+        });
     }
 
     /**
