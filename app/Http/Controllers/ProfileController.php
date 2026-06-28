@@ -37,8 +37,22 @@ class ProfileController extends Controller
             'avatar_seed' => ['nullable', 'string', 'max:60'],
         ]);
 
+        // Steam ID は 64bit / バニティ名 / プロフィールURL のいずれでも受け付けて解決する
+        if (! empty($validated['steam_id'])) {
+            $resolved = app(\App\Services\SteamService::class)->resolveSteamId($validated['steam_id']);
+            if ($resolved) {
+                $validated['steam_id'] = $resolved;
+            } else {
+                return back()->withInput()->withErrors([
+                    'steam_id' => 'Steam ID を解決できませんでした。17桁のID・バニティ名・プロフィールURLのいずれかを入力してください'
+                        . (\App\Services\SteamService::isConfigured() ? '（バニティ名はプロフィール公開が必要）。' : '（バニティ名の解決にはサーバーのSTEAM_API_KEYが必要）。'),
+                ]);
+            }
+        }
+
         $user->update($validated);
 
-        return back()->with('status', 'プロフィールを更新しました。');
+        return back()->with('status', 'プロフィールを更新しました。'
+            . (! empty($validated['steam_id']) ? '（Steam ID: ' . $validated['steam_id'] . '）' : ''));
     }
 }

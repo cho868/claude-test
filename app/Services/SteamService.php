@@ -21,6 +21,50 @@ class SteamService
     }
 
     /**
+     * 入力(64bit ID / バニティ名 / プロフィールURL)を 64bit SteamID に解決する。
+     * 解決できなければ null。
+     */
+    public function resolveSteamId(string $input): ?string
+    {
+        $input = trim($input);
+        if ($input === '') {
+            return null;
+        }
+
+        // プロフィールURLから抽出
+        if (preg_match('#steamcommunity\.com/profiles/(\d{17})#', $input, $m)) {
+            return $m[1];
+        }
+        if (preg_match('#steamcommunity\.com/id/([^/?\s]+)#', $input, $m)) {
+            $input = $m[1]; // バニティ名として後段で解決
+        }
+
+        // すでに 64bit ID
+        if (preg_match('/^\d{17}$/', $input)) {
+            return $input;
+        }
+
+        // バニティ名 → ID 解決（APIキーが必要）
+        if (! self::isConfigured()) {
+            return null;
+        }
+
+        try {
+            $res = Http::timeout(10)->get(
+                'https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/',
+                ['key' => config('services.steam.key'), 'vanityurl' => $input],
+            );
+            if ($res->ok() && (int) $res->json('response.success') === 1) {
+                return $res->json('response.steamid');
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
      * 直近 2 週間のプレイ実績を取り込む。
      * 同じゲーム×日付の記録は二重登録しない。
      *

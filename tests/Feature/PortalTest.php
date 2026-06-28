@@ -361,6 +361,18 @@ class PortalTest extends TestCase
         $this->assertSame(67, (int) round($win / ($win + $loss) * 100));
     }
 
+    public function test_steam_resolve_handles_id_and_url(): void
+    {
+        config(['services.steam.key' => null]); // バニティ解決は無効（ネット非依存の分だけ検証）
+        $svc = new \App\Services\SteamService();
+
+        $this->assertSame('76561198000000000', $svc->resolveSteamId('76561198000000000'));
+        $this->assertSame('76561198000000000', $svc->resolveSteamId('https://steamcommunity.com/profiles/76561198000000000/'));
+        // バニティ名はキーが無いと解決できない → null
+        $this->assertNull($svc->resolveSteamId('madgear'));
+        $this->assertNull($svc->resolveSteamId(''));
+    }
+
     public function test_registration_requires_invite_code_when_configured(): void
     {
         config(['portal.invite_code' => 'secret123']);

@@ -79,10 +79,10 @@
                                class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700">Steam ID (64bit)</label>
-                        <input type="text" name="steam_id" value="{{ old('steam_id', $user->steam_id) }}" placeholder="7656119..."
+                        <label class="block text-sm font-medium text-slate-700">Steam（IDまたはバニティ名・URL）</label>
+                        <input type="text" name="steam_id" value="{{ old('steam_id', $user->steam_id) }}" placeholder="7656119… / バニティ名 / プロフィールURL"
                                class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
-                        <p class="mt-1 text-xs text-slate-500">設定すると「ゲーム時間」画面から Steam のプレイ実績を取り込めます。</p>
+                        <p class="mt-1 text-xs text-slate-500">17桁のID・バニティ名（`/id/◯◯`）・プロフィールURL のどれでもOK。保存時に64bit IDへ自動変換します。「ゲーム時間」から実績を取り込めます。</p>
                     </div>
                 </div>
             </div>
