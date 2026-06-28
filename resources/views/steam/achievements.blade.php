@@ -15,6 +15,20 @@
         <x-btn type="submit">比較する</x-btn>
         <span class="text-xs text-slate-400">App ID は store.steampowered.com/app/<b>数字</b>/ の数字部分</span>
     </form>
+
+    @if (! empty($presets))
+        <div class="mt-4 border-t pt-3">
+            <p class="mb-2 text-xs font-bold text-slate-400">よく使うゲーム（共通所持・クリックで即比較）</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($presets as $p)
+                    <a href="{{ route('steam.achievements', ['appid' => $p['appid']]) }}"
+                       class="rounded-full border px-3 py-1 text-xs transition hover:bg-slate-50 {{ (string) $appid === $p['appid'] ? 'border-emerald-400 bg-emerald-50 font-bold text-emerald-700' : 'border-slate-200 text-slate-600' }}">
+                        {{ $p['name'] }} <span class="text-slate-400">({{ $p['count'] }})</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    @endif
 </div>
 
 @unless ($configured)

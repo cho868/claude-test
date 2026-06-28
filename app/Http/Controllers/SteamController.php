@@ -17,6 +17,35 @@ class SteamController extends Controller
             ->orderBy('name')->get(['id', 'name', 'steam_id', 'avatar_style', 'avatar_emoji', 'avatar_color', 'avatar_variant', 'avatar_seed']);
     }
 
+    /** 2人以上が所持する共通ゲーム（appid降順の集計） */
+    private function commonGames($members): array
+    {
+        if (! SteamService::isConfigured() || $members->count() < 2) {
+            return [];
+        }
+        $tally = [];
+        foreach ($members as $u) {
+            foreach ($this->steam->ownedGames($u->steam_id) as $appid => $g) {
+                $tally[$appid]['name'] = $g['name'];
+                $tally[$appid]['owners'][] = $u->name;
+            }
+        }
+
+        return collect($tally)
+            ->map(fn ($g, $appid) => [
+                'appid' => (string) $appid,
+                'name' => $g['name'],
+                'owners' => $g['owners'],
+                'count' => count($g['owners']),
+            ])
+            ->filter(fn ($g) => $g['count'] >= 2)
+            ->sortBy('name')
+            ->sortByDesc('count')
+            ->values()
+            ->take(60)
+            ->all();
+    }
+
     public function index()
     {
         $members = $this->members();
@@ -36,28 +65,16 @@ class SteamController extends Controller
             ];
         });
 
-        // 共通の所持ゲーム（2人以上が持っているもの）
-        $common = [];
-        if ($configured && $members->count() >= 2) {
-            $tally = [];
-            foreach ($members as $u) {
-                foreach ($this->steam->ownedGames($u->steam_id) as $appid => $g) {
-                    $tally[$appid]['name'] = $g['name'];
-                    $tally[$appid]['owners'][] = $u->name;
-                }
-            }
-            $common = collect($tally)
-                ->map(fn ($g, $appid) => [
-                    'appid' => $appid,
-                    'name' => $g['name'],
-                    'owners' => $g['owners'],
-                    'count' => count($g['owners']),
-                ])
-                ->filter(fn ($g) => $g['count'] >= 2)
-                ->sortByDesc(fn ($g) => [$g['count'], -1])
-                ->sortByDesc('count')
+        // 自分の全期間プレイ時間 TOP
+        $me = auth()->user();
+        $myGames = [];
+        if ($configured && ! empty($me->steam_id)) {
+            $myGames = collect($this->steam->ownedGames($me->steam_id))
+                ->map(fn ($g, $appid) => ['appid' => (string) $appid, 'name' => $g['name'], 'playtime' => $g['playtime']])
+                ->filter(fn ($g) => $g['playtime'] > 0)
+                ->sortByDesc('playtime')
                 ->values()
-                ->take(60)
+                ->take(15)
                 ->all();
         }
 
@@ -65,7 +82,9 @@ class SteamController extends Controller
             'configured' => $configured,
             'members' => $members,
             'now' => $now,
-            'common' => $common,
+            'common' => $this->commonGames($members),
+            'myGames' => $myGames,
+            'hasMySteam' => ! empty($me->steam_id),
             'memberCount' => $members->count(),
         ]);
     }
@@ -99,6 +118,7 @@ class SteamController extends Controller
             'gameName' => $gameName,
             'rows' => $rows,
             'hasMembers' => $members->isNotEmpty(),
+            'presets' => $this->commonGames($members),
         ]);
     }
 
