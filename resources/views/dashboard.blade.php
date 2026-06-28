@@ -46,7 +46,7 @@
                         ['tournaments.index', '🏆', 'トーナメント', '対戦表を自動生成'],
                         ['tierlists.index', '📊', 'Tierリスト', 'Tierリストを作成・共有'],
                         ['games.index', '🎮', 'ゲーム時間', 'Steam連携 / 手動記録'],
-                        ['steam.index', '🕹️', 'Steam', 'プレイ中/共通/実績/セール'],
+                        ['steam.index', '🕹️', 'Steam', 'プレイ中/共通/実績'],
                         ['matches.index', '⚔️', '戦績', '勝敗を記録・勝率'],
                         ['social.index', '📋', 'ソシャゲ管理', '日課/週課/月課'],
                         ['pokemon.index', '🔴', 'ポケモン計算', 'ダメージ計算機'],

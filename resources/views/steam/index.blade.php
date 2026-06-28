@@ -6,16 +6,15 @@
 @endphp
 
 @section('content')
-<x-page-header title="Steam" icon="🕹️" subtitle="身内のプレイ状況・共通ゲーム・実績・セール">
+<x-page-header title="Steam" icon="🕹️" subtitle="身内のプレイ状況・共通ゲーム・実績">
     <x-slot:actions>
         <x-btn href="{{ route('steam.achievements') }}" variant="secondary">✅ 実績コンプ率</x-btn>
-        <x-btn href="{{ route('steam.sales') }}" variant="secondary">🏷️ セール情報</x-btn>
     </x-slot:actions>
 </x-page-header>
 
 @unless ($configured)
     <div class="mb-4 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
-        サーバーの <code>STEAM_API_KEY</code> が未設定です。設定すると「いまプレイ中」「共通所持ゲーム」「実績」が使えます（セール情報はキー無しでも見られます）。
+        サーバーの <code>STEAM_API_KEY</code> が未設定です。設定すると「いまプレイ中」「共通所持ゲーム」「実績」が使えます。
     </div>
 @endunless
 

@@ -129,33 +129,6 @@ class SteamService
     }
 
     /**
-     * 現在セール中（フィーチャー特集の specials）。Steamストアの非公式エンドポイント。1時間キャッシュ。
-     * 返り値: [['appid','name','discount'(%),'final'(円),'original'(円),'image']]
-     */
-    public function featuredSpecials(): array
-    {
-        return Cache::remember('steam:specials', 3600, function () {
-            try {
-                $res = Http::timeout(15)->get('https://store.steampowered.com/api/featuredcategories', [
-                    'cc' => 'jp', 'l' => 'japanese',
-                ]);
-                $items = $res->json('specials.items', []);
-
-                return collect($items)->map(fn ($i) => [
-                    'appid' => $i['id'] ?? null,
-                    'name' => $i['name'] ?? '',
-                    'discount' => (int) ($i['discount_percent'] ?? 0),
-                    'final' => (int) round(($i['final_price'] ?? 0) / 100),
-                    'original' => (int) round(($i['original_price'] ?? 0) / 100),
-                    'image' => $i['header_image'] ?? ($i['small_capsule_image'] ?? null),
-                ])->filter(fn ($i) => $i['appid'])->values()->all();
-            } catch (\Throwable $e) {
-                return [];
-            }
-        });
-    }
-
-    /**
      * 入力(64bit ID / バニティ名 / プロフィールURL)を 64bit SteamID に解決する。
      * 解決できなければ null。
      */

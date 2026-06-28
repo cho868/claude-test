@@ -121,12 +121,4 @@ class SteamController extends Controller
             'presets' => $this->commonGames($members),
         ]);
     }
-
-    public function sales()
-    {
-        // セールはストアの公開エンドポイント（APIキー不要）
-        return view('steam.sales', [
-            'specials' => $this->steam->featuredSpecials(),
-        ]);
-    }
 }
