@@ -6,9 +6,26 @@
     subtitle="特定ゲームの実績達成率を身内で比較" />
 
 <div class="mb-4 rounded-2xl bg-white p-5 shadow-sm">
+    {{-- 自分のプレイ済みゲームから選ぶ（App ID 入力不要） --}}
+    @if (! empty($myGames))
+        <div class="mb-3">
+            <label class="block text-sm font-medium text-slate-700">自分がプレイしたゲームから選ぶ</label>
+            <select onchange="if (this.value) location.href='{{ route('steam.achievements') }}?appid='+this.value"
+                    class="mt-1 w-full max-w-md rounded-lg border-slate-300 text-sm shadow-sm sm:w-80">
+                <option value="">― ゲームを選択（プレイ時間順）―</option>
+                @foreach ($myGames as $g)
+                    <option value="{{ $g['appid'] }}" @selected((string) $appid === $g['appid'])>
+                        {{ $g['name'] }}（{{ number_format($g['playtime'] / 60, 1) }}h）
+                    </option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-xs text-slate-400">プレイ時間データから自動でリスト化。選ぶだけで実績を比較します。</p>
+        </div>
+    @endif
+
     <form method="GET" action="{{ route('steam.achievements') }}" class="flex flex-wrap items-end gap-2">
         <div>
-            <label class="block text-sm font-medium text-slate-700">App ID</label>
+            <label class="block text-sm font-medium text-slate-700">App ID で直接指定</label>
             <input type="text" name="appid" value="{{ $appid }}" placeholder="例: 1245620（ELDEN RING）"
                    class="mt-1 w-48 rounded-lg border-slate-300 text-sm shadow-sm">
         </div>

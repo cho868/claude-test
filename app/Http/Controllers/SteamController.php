@@ -112,6 +112,18 @@ class SteamController extends Controller
             usort($rows, fn ($a, $b) => $b['pct'] <=> $a['pct']);
         }
 
+        // 自分のプレイ済みゲーム（App ID を打たずに選べるように）
+        $me = auth()->user();
+        $myGames = [];
+        if ($configured && ! empty($me->steam_id)) {
+            $myGames = collect($this->steam->ownedGames($me->steam_id))
+                ->map(fn ($g, $id) => ['appid' => (string) $id, 'name' => $g['name'], 'playtime' => $g['playtime']])
+                ->filter(fn ($g) => $g['playtime'] > 0)
+                ->sortByDesc('playtime')
+                ->values()
+                ->all();
+        }
+
         return view('steam.achievements', [
             'configured' => $configured,
             'appid' => $appid,
@@ -119,6 +131,7 @@ class SteamController extends Controller
             'rows' => $rows,
             'hasMembers' => $members->isNotEmpty(),
             'presets' => $this->commonGames($members),
+            'myGames' => $myGames,
         ]);
     }
 }
