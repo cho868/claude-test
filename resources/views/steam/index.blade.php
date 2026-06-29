@@ -8,7 +8,8 @@
 @section('content')
 <x-page-header title="Steam" icon="🕹️" subtitle="身内のプレイ状況・共通ゲーム・実績">
     <x-slot:actions>
-        <x-btn href="{{ route('steam.achievements') }}" variant="secondary">✅ 実績コンプ率</x-btn>
+        <x-btn href="{{ route('steam.mine') }}" variant="secondary">🏅 マイ実績</x-btn>
+        <x-btn href="{{ route('steam.achievements') }}" variant="secondary">⚖️ みんなと比較</x-btn>
     </x-slot:actions>
 </x-page-header>
 
@@ -87,8 +88,8 @@
             @foreach ($myGames as $i => $g)
                 <div>
                     <div class="mb-0.5 flex items-center justify-between gap-2 text-sm">
-                        <a href="{{ route('steam.achievements', ['appid' => $g['appid']]) }}"
-                           class="flex min-w-0 items-center gap-1.5 hover:text-slate-900" title="{{ $g['name'] }} の実績を比較">
+                        <a href="{{ route('steam.mine', ['appid' => $g['appid']]) }}"
+                           class="flex min-w-0 items-center gap-1.5 hover:text-slate-900" title="{{ $g['name'] }} の自分の実績を見る">
                             <span class="w-5 shrink-0 text-right text-slate-400">{{ $i + 1 }}</span>
                             <span class="truncate font-medium">{{ $g['name'] }}</span>
                         </a>
@@ -100,7 +101,7 @@
                 </div>
             @endforeach
         </div>
-        <p class="mt-3 text-xs text-slate-400">※ ゲーム名クリックで実績比較。6時間キャッシュ。</p>
+        <p class="mt-3 text-xs text-slate-400">※ ゲーム名クリックで自分の実績を確認。6時間キャッシュ。</p>
     @endif
 </div>
 @endif

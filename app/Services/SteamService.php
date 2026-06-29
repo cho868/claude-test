@@ -129,6 +129,55 @@ class SteamService
     }
 
     /**
+     * 特定ゲームの「自分の」実績を1件ずつ取得（実績名つき・日本語）。10分キャッシュ。
+     * 返り値: ['game'=>?string,'achieved'=>int,'total'=>int,'pct'=>int,
+     *          'items'=>[['name','desc','done'(bool),'time'(?int unlock unixtime)]]] / 取得不可は null
+     */
+    public function achievementDetail(string $steamid, string $appid): ?array
+    {
+        if (! self::isConfigured() || empty($steamid) || empty($appid)) {
+            return null;
+        }
+
+        return Cache::remember("steam:achdetail:{$steamid}:{$appid}", 600, function () use ($steamid, $appid) {
+            try {
+                $res = Http::timeout(12)->get(
+                    'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/',
+                    ['key' => $this->key(), 'steamid' => $steamid, 'appid' => $appid, 'l' => 'japanese'],
+                );
+                if (! $res->json('playerstats.success')) {
+                    return null;
+                }
+                $list = $res->json('playerstats.achievements', []);
+                $total = count($list);
+                if ($total === 0) {
+                    return null;
+                }
+                $items = collect($list)->map(fn ($a) => [
+                    'name' => $a['name'] ?? ($a['apiname'] ?? '???'),
+                    'desc' => $a['description'] ?? '',
+                    'done' => (int) ($a['achieved'] ?? 0) === 1,
+                    'time' => ! empty($a['unlocktime']) ? (int) $a['unlocktime'] : null,
+                ])
+                    ->sortByDesc('done')
+                    ->values()
+                    ->all();
+                $achieved = collect($items)->where('done', true)->count();
+
+                return [
+                    'game' => $res->json('playerstats.gameName') ?: null,
+                    'achieved' => $achieved,
+                    'total' => $total,
+                    'pct' => (int) round($achieved / $total * 100),
+                    'items' => $items,
+                ];
+            } catch (\Throwable $e) {
+                return null;
+            }
+        });
+    }
+
+    /**
      * 入力(64bit ID / バニティ名 / プロフィールURL)を 64bit SteamID に解決する。
      * 解決できなければ null。
      */

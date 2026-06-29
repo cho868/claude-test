@@ -134,4 +134,36 @@ class SteamController extends Controller
             'myGames' => $myGames,
         ]);
     }
+
+    /** 自分専用の実績確認（ゲーム選択 → 個々の実績一覧） */
+    public function mine(Request $request)
+    {
+        $appid = preg_replace('/\D/', '', (string) $request->query('appid', ''));
+        $configured = SteamService::isConfigured();
+        $me = auth()->user();
+        $hasSteam = ! empty($me->steam_id);
+
+        $myGames = [];
+        if ($configured && $hasSteam) {
+            $myGames = collect($this->steam->ownedGames($me->steam_id))
+                ->map(fn ($g, $id) => ['appid' => (string) $id, 'name' => $g['name'], 'playtime' => $g['playtime']])
+                ->filter(fn ($g) => $g['playtime'] > 0)
+                ->sortByDesc('playtime')
+                ->values()
+                ->all();
+        }
+
+        $detail = null;
+        if ($configured && $hasSteam && $appid !== '') {
+            $detail = $this->steam->achievementDetail($me->steam_id, $appid);
+        }
+
+        return view('steam.mine', [
+            'configured' => $configured,
+            'hasSteam' => $hasSteam,
+            'appid' => $appid,
+            'myGames' => $myGames,
+            'detail' => $detail,
+        ]);
+    }
 }

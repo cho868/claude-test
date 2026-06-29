@@ -80,6 +80,7 @@ Route::middleware('auth')->group(function () {
 
     // Steam 連携(いまプレイ中 / 実績 / 共通所持)
     Route::get('steam', [SteamController::class, 'index'])->name('steam.index');
+    Route::get('steam/mine', [SteamController::class, 'mine'])->name('steam.mine');
     Route::get('steam/achievements', [SteamController::class, 'achievements'])->name('steam.achievements');
 
     // リンク集(身内で共有するブックマーク)
