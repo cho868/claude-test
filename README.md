@@ -90,7 +90,8 @@ sudo bash deploy/deploy-app.sh main # 取得 → composer → migrate → 最適
 - **[deploy/TROUBLESHOOTING.md](deploy/TROUBLESHOOTING.md)** … サイトが落ちた時の自己診断・修正ナレッジ（症状→診断→原因→直し方をパターン別に記録）
 
 セキュリティ補足:
-- 新規登録は `REGISTRATION_INVITE_CODE` を設定すると招待コード必須（野良登録を防止）
+- 新規登録は `REGISTRATION_INVITE_CODE` を設定すると招待コード必須（野良登録を防止）。未設定ならURLを知っている人は誰でも登録可
+- パスワードを忘れたら **管理者がユーザー管理画面から再設定リンクを発行** → 本人がリンクを開いて自分で設定（メール不要・パスワードは誰にも見えない・60分/1回限り有効）
 - ログイン/登録はレート制限（1分6回）でブルートフォース対策
 - 資料の Markdown は生HTML除去で XSS 対策、本番は `APP_DEBUG=false`
 

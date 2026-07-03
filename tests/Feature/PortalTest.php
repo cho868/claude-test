@@ -396,4 +396,61 @@ class PortalTest extends TestCase
         ])->assertRedirect(route('dashboard'));
         $this->assertDatabaseHas('users', ['email' => 'member@example.com']);
     }
+
+    public function test_admin_can_issue_password_reset_link_and_user_can_reset(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $member = User::factory()->create();
+
+        // 一般ユーザーは発行できない
+        $this->actingAs($member)
+            ->post(route('admin.users.reset-link', $admin))
+            ->assertForbidden();
+
+        // 管理者が発行 → セッションにリンクが載る
+        $res = $this->actingAs($admin)->post(route('admin.users.reset-link', $member));
+        $res->assertSessionHas('reset_link');
+        $url = session('reset_link')['url'];
+        $this->assertStringContainsString('reset-password/', $url);
+
+        // 本人がリンクを開いて新パスワードを設定
+        auth()->logout();
+        $token = \Illuminate\Support\Str::between($url, 'reset-password/', '?');
+        $this->get($url)->assertOk()->assertSee('パスワード再設定');
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $member->email,
+            'password' => 'new-password-456',
+            'password_confirmation' => 'new-password-456',
+        ])->assertRedirect(route('login'));
+
+        // 新パスワードでログインできる
+        $this->post('/login', ['email' => $member->email, 'password' => 'new-password-456'])
+            ->assertRedirect(route('dashboard'));
+
+        // トークンは使い捨て（再利用は失敗）
+        auth()->logout();
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $member->email,
+            'password' => 'another-pass-789',
+            'password_confirmation' => 'another-pass-789',
+        ])->assertSessionHasErrors('email');
+    }
+
+    public function test_reset_with_invalid_token_fails(): void
+    {
+        $member = User::factory()->create(['password' => bcrypt('original-pass')]);
+
+        $this->post(route('password.update'), [
+            'token' => 'garbage-token',
+            'email' => $member->email,
+            'password' => 'new-password-456',
+            'password_confirmation' => 'new-password-456',
+        ])->assertSessionHasErrors('email');
+
+        // パスワードは変わっていない
+        $this->post('/login', ['email' => $member->email, 'password' => 'original-pass'])
+            ->assertRedirect(route('dashboard'));
+    }
 }

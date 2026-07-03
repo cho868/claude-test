@@ -10,6 +10,7 @@ use App\Models\Survey;
 use App\Models\User;
 use App\Services\ServerStats;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Password;
 
 class AdminController extends Controller
 {
@@ -70,5 +71,21 @@ class AdminController extends Controller
         $user->update(['is_admin' => ! $user->is_admin]);
 
         return back()->with('status', "{$user->name} を" . ($user->is_admin ? '管理者に' : '一般ユーザーに') . '変更しました。');
+    }
+
+    /**
+     * パスワードリセットリンクの発行（メール無し運用のため管理者が本人に渡す）。
+     * リンクを開いた本人が新パスワードを設定するので、パスワードは誰にも見えない。
+     */
+    public function issueResetLink(User $user)
+    {
+        $token = Password::broker()->createToken($user);
+        $url = route('password.reset', ['token' => $token, 'email' => $user->email]);
+
+        return back()->with('reset_link', [
+            'user' => $user->name,
+            'url' => $url,
+            'expires' => config('auth.passwords.users.expire', 60),
+        ]);
     }
 }

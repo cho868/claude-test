@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\BotController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
@@ -39,6 +40,10 @@ Route::middleware('guest')->group(function () {
     Route::post('register', [RegisteredUserController::class, 'store'])->middleware('throttle:6,1');
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:6,1');
+    // パスワード再設定(管理者が発行したリンクを本人が開く。メール送信なし)
+    Route::get('reset-password/{token}', [PasswordResetController::class, 'create'])->name('password.reset');
+    Route::post('reset-password', [PasswordResetController::class, 'store'])
+        ->middleware('throttle:6,1')->name('password.update');
 });
 
 /*
@@ -104,6 +109,7 @@ Route::middleware('auth')->group(function () {
         Route::post('tasks/{task}/toggle', [AdminController::class, 'toggleTask'])->name('tasks.toggle');
         Route::get('users', [AdminController::class, 'users'])->name('users');
         Route::post('users/{user}/toggle-admin', [AdminController::class, 'toggleAdmin'])->name('users.toggle-admin');
+        Route::post('users/{user}/reset-link', [AdminController::class, 'issueResetLink'])->name('users.reset-link');
         // Discord Bot 設定（localhost:3000 をサーバー側で中継）
         Route::get('bot', [BotController::class, 'index'])->name('bot');
         Route::post('bot', [BotController::class, 'update'])->name('bot.update');
