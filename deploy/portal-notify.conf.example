@@ -13,7 +13,7 @@ SITE_URL="https://madgear.sytes.net"
 # 体験終了日（分かれば YYYY-MM-DD。空でも可。分かり次第ここに記入）
 TRIAL_END=""
 
-# 認証間隔（日）: 2GBプラン=4 / 4GBプラン=2
+# 認証間隔（日）: 2GBプラン=4 / 4GBプラン=2（4GBは2日ごとに再認証が必要！）
 REAUTH_INTERVAL_DAYS="4"
 
 # no-ip を最後に確認した日（YYYY-MM-DD）。確認するたびに更新すると残り日数を計算します
@@ -30,3 +30,11 @@ LINE_TOKEN=""
 
 # メモリ使用率アラートのしきい値（%。これ以上でDiscord/LINEに警告）
 MEM_ALERT_THRESHOLD="85"
+
+# ===== オフサイト・バックアップ（backup-to-discord.sh 用）=====
+# DBを毎日Discordへ退避してVPS全損に備える。守るべきはDBファイル。
+# バックアップ専用チャンネルのWebhook（空なら上の DISCORD_WEBHOOK を流用）
+BACKUP_WEBHOOK=""
+# 暗号化パスフレーズ（ユーザーデータをDiscordに置くため設定を強く推奨）。
+# ※このパスフレーズは復元に必須。パスワードマネージャ等でVPSの外に控えること
+BACKUP_PASSPHRASE=""
