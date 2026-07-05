@@ -19,7 +19,7 @@ class PasswordResetController extends Controller
     {
         return view('auth.reset-password', [
             'token' => $token,
-            'email' => (string) $request->query('email', ''),
+            'username' => (string) $request->query('username', ''),
         ]);
     }
 
@@ -27,15 +27,15 @@ class PasswordResetController extends Controller
     {
         $validated = $request->validate([
             'token' => ['required', 'string'],
-            'email' => ['required', 'string', 'lowercase', 'email'],
+            'username' => ['required', 'string'],
             'password' => ['required', 'confirmed', PasswordRule::defaults()],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where('username', strtolower($validated['username']))->first();
 
         // ユーザー不明でもトークン不一致でも同じエラーにする(存在の探りを防ぐ)
         if (! $user || ! Password::broker()->tokenExists($user, $validated['token'])) {
-            return back()->withErrors(['email' => 'リンクが無効か期限切れです。管理者にリンクの再発行を依頼してください。']);
+            return back()->withErrors(['username' => 'リンクが無効か期限切れです。管理者にリンクの再発行を依頼してください。']);
         }
 
         $user->forceFill(['password' => Hash::make($validated['password'])])->save();

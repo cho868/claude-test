@@ -28,6 +28,7 @@
                                 'matches.index'     => ['⚔️', '戦績'],
                                 'social.index'      => ['📋', 'ソシャゲ管理'],
                                 'pokemon.index'     => ['🔴', 'ポケモン計算'],
+                                'arcade.index'      => ['👾', 'ミニゲーム'],
                             ]],
                             'からだ' => ['💪', [
                                 'sleep.index'   => ['😴', '睡眠'],

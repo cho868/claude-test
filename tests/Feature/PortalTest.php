@@ -25,14 +25,14 @@ class PortalTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'たろう',
-            'email' => 'taro@example.com',
+            'username' => 'taro',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
 
         $response->assertRedirect(route('dashboard'));
 
-        $user = User::firstWhere('email', 'taro@example.com');
+        $user = User::firstWhere('username', 'taro');
         $this->assertSame(1, $user->login_streak);
         // 基礎10pt + ストリーク(1日 * 2) = 12pt
         $this->assertSame(12, (int) $user->points);
@@ -380,21 +380,21 @@ class PortalTest extends TestCase
         // コード無し → 失敗（登録されない）
         $this->post('/register', [
             'name' => 'よそ者',
-            'email' => 'stranger@example.com',
+            'username' => 'stranger',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ])->assertSessionHasErrors('invite_code');
-        $this->assertDatabaseMissing('users', ['email' => 'stranger@example.com']);
+        $this->assertDatabaseMissing('users', ['username' => 'stranger']);
 
         // 正しいコード → 登録成功
         $this->post('/register', [
             'name' => '身内',
-            'email' => 'member@example.com',
+            'username' => 'member',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'invite_code' => 'secret123',
         ])->assertRedirect(route('dashboard'));
-        $this->assertDatabaseHas('users', ['email' => 'member@example.com']);
+        $this->assertDatabaseHas('users', ['username' => 'member']);
     }
 
     public function test_admin_can_issue_password_reset_link_and_user_can_reset(): void
@@ -419,23 +419,23 @@ class PortalTest extends TestCase
         $this->get($url)->assertOk()->assertSee('パスワード再設定');
         $this->post(route('password.update'), [
             'token' => $token,
-            'email' => $member->email,
+            'username' => $member->username,
             'password' => 'new-password-456',
             'password_confirmation' => 'new-password-456',
         ])->assertRedirect(route('login'));
 
         // 新パスワードでログインできる
-        $this->post('/login', ['email' => $member->email, 'password' => 'new-password-456'])
+        $this->post('/login', ['username' => $member->username, 'password' => 'new-password-456'])
             ->assertRedirect(route('dashboard'));
 
         // トークンは使い捨て（再利用は失敗）
         auth()->logout();
         $this->post(route('password.update'), [
             'token' => $token,
-            'email' => $member->email,
+            'username' => $member->username,
             'password' => 'another-pass-789',
             'password_confirmation' => 'another-pass-789',
-        ])->assertSessionHasErrors('email');
+        ])->assertSessionHasErrors('username');
     }
 
     public function test_reset_with_invalid_token_fails(): void
@@ -444,13 +444,41 @@ class PortalTest extends TestCase
 
         $this->post(route('password.update'), [
             'token' => 'garbage-token',
-            'email' => $member->email,
+            'username' => $member->username,
             'password' => 'new-password-456',
             'password_confirmation' => 'new-password-456',
-        ])->assertSessionHasErrors('email');
+        ])->assertSessionHasErrors('username');
 
         // パスワードは変わっていない
-        $this->post('/login', ['email' => $member->email, 'password' => 'original-pass'])
+        $this->post('/login', ['username' => $member->username, 'password' => 'original-pass'])
             ->assertRedirect(route('dashboard'));
+    }
+
+    public function test_arcade_score_saves_and_awards_points_once_per_day(): void
+    {
+        $user = User::factory()->create();
+
+        // 初回: 保存 + 5pt
+        $res = $this->actingAs($user)->postJson(route('arcade.score'), ['game' => 'reaction', 'score' => 250]);
+        $res->assertOk()->assertJson(['ok' => true, 'isBest' => true, 'earned' => 5]);
+        $this->assertDatabaseHas('game_scores', ['user_id' => $user->id, 'game' => 'reaction', 'score' => 250]);
+
+        // 同日2回目: 保存されるがポイントは付かない。ベスト更新も判定される
+        $res = $this->actingAs($user)->postJson(route('arcade.score'), ['game' => 'reaction', 'score' => 200]);
+        $res->assertOk()->assertJson(['ok' => true, 'isBest' => true, 'earned' => 0]);
+
+        // 悪い記録はベスト扱いにならない
+        $res = $this->actingAs($user)->postJson(route('arcade.score'), ['game' => 'reaction', 'score' => 400]);
+        $res->assertOk()->assertJson(['isBest' => false]);
+
+        // 不正なゲーム名・範囲外スコアは拒否
+        $this->actingAs($user)->postJson(route('arcade.score'), ['game' => 'hack', 'score' => 100])
+            ->assertStatus(422);
+        $this->actingAs($user)->postJson(route('arcade.score'), ['game' => 'reaction', 'score' => 10])
+            ->assertStatus(422);
+
+        // ランキングページにベストが出る
+        $this->actingAs($user)->get(route('arcade.index'))
+            ->assertOk()->assertSee('200ms');
     }
 }

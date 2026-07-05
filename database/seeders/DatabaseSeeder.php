@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
         // 開発用の管理者アカウントはローカルのみ（本番では最初の登録者が管理者になる）
         if (app()->environment('local')) {
             User::firstOrCreate(
-                ['email' => 'admin@example.com'],
+                ['username' => 'admin'],
                 ['name' => '管理人', 'password' => 'password', 'is_admin' => true],
             );
         }

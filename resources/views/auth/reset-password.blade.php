@@ -8,8 +8,9 @@
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
         <div>
-            <label class="block text-sm font-medium text-slate-700">メールアドレス</label>
-            <input type="email" name="email" value="{{ old('email', $email) }}" required
+            <label class="block text-sm font-medium text-slate-700">ログインID</label>
+            <input type="text" name="username" value="{{ old('username', $username) }}" required
+                   autocapitalize="none" autocomplete="username"
                    class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
         </div>
         <div>

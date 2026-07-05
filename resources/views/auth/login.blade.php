@@ -6,8 +6,9 @@
     <form method="POST" action="{{ route('login') }}" class="space-y-4">
         @csrf
         <div>
-            <label class="block text-sm font-medium text-slate-700">メールアドレス</label>
-            <input type="email" name="email" value="{{ old('email') }}" required autofocus
+            <label class="block text-sm font-medium text-slate-700">ログインID</label>
+            <input type="text" name="username" value="{{ old('username') }}" required autofocus
+                   autocapitalize="none" autocomplete="username"
                    class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
         </div>
         <div>

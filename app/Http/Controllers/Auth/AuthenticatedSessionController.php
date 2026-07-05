@@ -17,14 +17,15 @@ class AuthenticatedSessionController extends Controller
     public function store(Request $request, PointService $points)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'string', 'email'],
+            'username' => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
+        $credentials['username'] = strtolower($credentials['username']);
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()
-                ->withInput($request->only('email'))
-                ->withErrors(['email' => 'メールアドレスかパスワードが正しくありません。']);
+                ->withInput($request->only('username'))
+                ->withErrors(['username' => 'ログインIDかパスワードが正しくありません。']);
         }
 
         $request->session()->regenerate();

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ArcadeController;
 use App\Http\Controllers\BotController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -82,6 +83,11 @@ Route::middleware('auth')->group(function () {
 
     // ポケモン ダメージ計算(チャンピオンズ対応・クライアント計算)
     Route::get('pokemon', [PokemonController::class, 'index'])->name('pokemon.index');
+
+    // ミニゲーム(アーケード)
+    Route::get('arcade', [ArcadeController::class, 'index'])->name('arcade.index');
+    Route::post('arcade/score', [ArcadeController::class, 'store'])
+        ->middleware('throttle:30,1')->name('arcade.score');
 
     // Steam 連携(いまプレイ中 / 実績 / 共通所持)
     Route::get('steam', [SteamController::class, 'index'])->name('steam.index');

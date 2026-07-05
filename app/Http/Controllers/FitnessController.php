@@ -42,7 +42,26 @@ class FitnessController extends Controller
             ->where('ends_on', '>=', Carbon::today()->subDays(0))
             ->orderBy('ends_on')->take(5)->get();
 
+        // みんなの体重推移（直近90日・2件以上記録がある人を重ねて表示）
+        $since = Carbon::today()->subDays(90);
+        $allRecords = WeightRecord::with('user')
+            ->where('recorded_on', '>=', $since)
+            ->orderBy('recorded_on')
+            ->get();
+        $allSeries = $allRecords->groupBy('user_id')
+            ->filter(fn ($rs) => $rs->count() >= 2 && $rs->first()->user)
+            ->map(fn ($rs) => [
+                'user' => $rs->first()->user,
+                'points' => $rs->map(fn ($r) => [
+                    'day' => $since->diffInDays($r->recorded_on),
+                    'kg' => (float) $r->weight_kg,
+                    'date' => $r->recorded_on->format('n/j'),
+                ])->values(),
+            ])->values();
+
         return view('fitness.index', [
+            'allSeries' => $allSeries,
+            'allSince' => $since,
             'weights' => $weights,
             'weightChart' => $weightChart,
             'exercises' => $exercises,

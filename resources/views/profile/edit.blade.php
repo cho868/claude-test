@@ -15,9 +15,10 @@
                        class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700">メールアドレス</label>
-                <input type="email" name="email" value="{{ old('email', $user->email) }}" required
-                       class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                <label class="block text-sm font-medium text-slate-700">ログインID</label>
+                <input type="text" value="{{ $user->username }}" disabled
+                       class="mt-1 w-full rounded-lg border-slate-200 bg-slate-50 text-slate-500 shadow-sm">
+                <p class="mt-1 text-xs text-slate-400">ログインIDは変更できません。</p>
             </div>
             {{-- アバター(アップロード不要・著作権フリー) --}}
             <div class="rounded-xl bg-slate-50 p-4">

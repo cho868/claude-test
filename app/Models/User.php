@@ -15,6 +15,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
         'avatar',
@@ -44,6 +45,12 @@ class User extends Authenticatable
             'target_weight_kg' => 'decimal:2',
             'weekly_exercise_goal' => 'integer',
         ];
+    }
+
+    /** パスワード再設定トークンのキー（メール無し運用のためログインIDを使う） */
+    public function getEmailForPasswordReset(): string
+    {
+        return (string) $this->username;
     }
 
     /** DiceBear（自動生成イラスト）のURL。アップロード不要・著作権フリー。 */

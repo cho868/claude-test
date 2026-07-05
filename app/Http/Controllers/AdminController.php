@@ -80,7 +80,7 @@ class AdminController extends Controller
     public function issueResetLink(User $user)
     {
         $token = Password::broker()->createToken($user);
-        $url = route('password.reset', ['token' => $token, 'email' => $user->email]);
+        $url = route('password.reset', ['token' => $token, 'username' => $user->username]);
 
         return back()->with('reset_link', [
             'user' => $user->name,

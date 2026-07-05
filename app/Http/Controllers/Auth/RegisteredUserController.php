@@ -36,15 +36,18 @@ class RegisteredUserController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
+            'username' => ['required', 'string', 'lowercase', 'alpha_dash:ascii', 'min:3', 'max:32', 'unique:users'],
             'password' => ['required', 'confirmed', Password::defaults()],
+        ], [
+            'username.alpha_dash' => 'ログインIDは半角英数字とハイフン・アンダースコアのみ使えます。',
+            'username.unique' => 'このログインIDは既に使われています。',
         ]);
 
         $user = User::create($validated);
 
         // 最初に登録したユーザーだけ管理者にする(初期セットアップ用)。
         // 2人目以降は一般ユーザー。あとから管理画面 or
-        //   php artisan portal:make-admin {email}
+        //   php artisan portal:make-admin {username}
         // で付与/剥奪できる。
         if (User::count() === 1) {
             $user->forceFill(['is_admin' => true])->save();

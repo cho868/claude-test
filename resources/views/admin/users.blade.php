@@ -31,7 +31,7 @@
     <table class="w-full text-sm">
         <thead>
             <tr class="border-b text-left text-xs text-slate-400">
-                <th class="py-2">名前</th><th>メール</th><th>称号</th><th class="text-right">pt</th>
+                <th class="py-2">名前</th><th>ログインID</th><th>称号</th><th class="text-right">pt</th>
                 <th class="text-center">連続</th><th class="text-center">権限</th><th></th>
             </tr>
         </thead>
@@ -39,7 +39,7 @@
             @foreach ($users as $u)
                 <tr class="border-b last:border-0">
                     <td class="py-2 font-medium"><span class="flex items-center gap-2"><x-avatar :user="$u" :size="24" /> {{ $u->name }}</span></td>
-                    <td class="text-slate-500">{{ $u->email }}</td>
+                    <td class="text-slate-500">{{ $u->username }}</td>
                     <td><x-title-badge :title="$u->currentTitle()" /></td>
                     <td class="text-right">{{ number_format($u->points) }}</td>
                     <td class="text-center">{{ $u->login_streak }}日</td>

@@ -158,6 +158,58 @@
             @endif
         </div>
 
+        {{-- みんなの体重推移（重ねグラフ） --}}
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <h3 class="mb-3 font-bold">👥 みんなの体重推移 <span class="text-xs font-normal text-slate-400">（直近90日）</span></h3>
+            @if ($allSeries->count() >= 1)
+                @php
+                    $palette = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+                    $allKg = $allSeries->flatMap(fn ($s) => collect($s['points'])->pluck('kg'));
+                    $aMin = $allKg->min(); $aMax = $allKg->max();
+                    $aRange = max(0.5, $aMax - $aMin);
+                    $maxDay = max(1, $allSeries->flatMap(fn ($s) => collect($s['points'])->pluck('day'))->max());
+                    $W = 600; $H = 200; $pad = 12;
+                    $px = fn ($day) => round($pad + $day / $maxDay * ($W - 2 * $pad), 1);
+                    $py = fn ($kg) => round($H - $pad - (($kg - $aMin) / $aRange) * ($H - 2 * $pad), 1);
+                @endphp
+                <svg viewBox="0 0 {{ $W }} {{ $H }}" class="w-full" preserveAspectRatio="none" style="height:220px">
+                    {{-- 目盛り(最小/最大) --}}
+                    <line x1="{{ $pad }}" y1="{{ $py($aMax) }}" x2="{{ $W - $pad }}" y2="{{ $py($aMax) }}" stroke="#f1f5f9" stroke-width="1"/>
+                    <line x1="{{ $pad }}" y1="{{ $py($aMin) }}" x2="{{ $W - $pad }}" y2="{{ $py($aMin) }}" stroke="#f1f5f9" stroke-width="1"/>
+                    @foreach ($allSeries as $i => $s)
+                        @php
+                            $color = $palette[$i % count($palette)];
+                            $coords = collect($s['points'])->map(fn ($p) => $px($p['day']) . ',' . $py($p['kg']))->implode(' ');
+                        @endphp
+                        <polyline points="{{ $coords }}" fill="none" stroke="{{ $color }}" stroke-width="2" stroke-linejoin="round"/>
+                        @foreach ($s['points'] as $p)
+                            <circle cx="{{ $px($p['day']) }}" cy="{{ $py($p['kg']) }}" r="2.5" fill="{{ $color }}">
+                                <title>{{ $s['user']->name }} {{ $p['date'] }}: {{ $p['kg'] }}kg</title>
+                            </circle>
+                        @endforeach
+                    @endforeach
+                </svg>
+                <div class="flex justify-between text-xs text-slate-400">
+                    <span>{{ $allSince->format('n/j') }}〜</span>
+                    <span>{{ $aMin }}kg 〜 {{ $aMax }}kg</span>
+                </div>
+                {{-- 凡例 --}}
+                <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+                    @foreach ($allSeries as $i => $s)
+                        @php $last = collect($s['points'])->last(); @endphp
+                        <span class="flex items-center gap-1.5 text-xs">
+                            <span class="inline-block h-2.5 w-2.5 rounded-full" style="background: {{ $palette[$i % count($palette)] }}"></span>
+                            <x-avatar :user="$s['user']" :size="18" />
+                            {{ $s['user']->name }}
+                            <span class="text-slate-400">{{ $last['kg'] }}kg</span>
+                        </span>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-sm text-slate-400">直近90日に2日分以上記録している人がいると、みんなの推移が重なって表示されます。</p>
+            @endif
+        </div>
+
         {{-- 運動サマリー --}}
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <div class="mb-3 flex items-center justify-between">

@@ -11,9 +11,11 @@
                    class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-700">メールアドレス</label>
-            <input type="email" name="email" value="{{ old('email') }}" required
+            <label class="block text-sm font-medium text-slate-700">ログインID</label>
+            <input type="text" name="username" value="{{ old('username') }}" required
+                   autocapitalize="none" autocomplete="username"
                    class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+            <p class="mt-1 text-xs text-slate-500">半角英数字・ハイフン・アンダースコア（3〜32文字）。ログインに使います。</p>
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">パスワード</label>
