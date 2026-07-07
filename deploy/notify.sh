@@ -6,11 +6,17 @@
 # 使い方:
 #   1) 設定ファイルを作成:  sudo cp deploy/portal-notify.conf.example /etc/portal-notify.conf
 #                          sudo vi /etc/portal-notify.conf   （Webhook等を記入）
-#   2) cron に登録（毎朝9時の例）:
+#   2) cron に登録（毎朝9時 + 緊急時は毎時しつこく鳴らす例）:
 #        sudo crontab -e
-#        0 9 * * * /var/www/portal/deploy/notify.sh
+#        0 9 * * *    /var/www/portal/deploy/notify.sh
+#        0 * * * *    /var/www/portal/deploy/notify.sh --urgent-only
 #
+# --urgent-only: 緊急事項（体験期限が今日/明日・SSL切れ・no-ip期限間近・メモリ逼迫）が
+#                ある時だけ送信する。何もなければ黙る＝毎時cronに入れてもうるさくない。
 set -euo pipefail
+
+URGENT_ONLY=0
+[ "${1:-}" = "--urgent-only" ] && URGENT_ONLY=1
 
 # ===== デフォルト値（/etc/portal-notify.conf で上書き）=====
 DISCORD_WEBHOOK=""                 # Discord Webhook URL（必須）
@@ -129,12 +135,23 @@ MSG="${MSG}
 [ -n "$SITE_URL" ] && MSG="${MSG}
 🔗 ${SITE_URL}"
 
+# --urgent-only モード: 緊急が無ければ何も送らずに終了
+if [ "$URGENT_ONLY" -eq 1 ]; then
+  if [ -z "$URGENT" ]; then
+    echo "[notify] 緊急事項なし（--urgent-only のため送信スキップ）"
+    exit 0
+  fi
+  MSG="${URGENT}🚨 **緊急リマインド**（1時間ごとに再送中。対応するまで鳴ります）
+${MSG}"
+fi
+
 send_discord "$MSG"
 send_line "$MSG"
 
 # ===== 死活監視 ping（このスクリプトが動いた＝サーバー生存）=====
 # 一定時間 ping が来ないと healthchecks.io 側から「落ちた」通知が飛ぶ。
-if [ -n "$HEALTHCHECK_URL" ]; then
+# ※ ping は毎日の通常実行時のみ（--urgent-only は期限アラート専用）
+if [ "$URGENT_ONLY" -eq 0 ] && [ -n "$HEALTHCHECK_URL" ]; then
   curl -fsS -m 10 "$HEALTHCHECK_URL" >/dev/null || true
 fi
 
