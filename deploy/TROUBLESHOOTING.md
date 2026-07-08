@@ -162,6 +162,46 @@ sudo certbot renew && sudo systemctl reload nginx
 
 ---
 
+## ケースE-2. VPS再構築後、HTTPSだけ繋がらない（★2回発生・再構築の定番ハマり）
+
+### 症状
+- ブラウザで `https://ドメイン` が `ERR_CONNECTION_REFUSED`
+- DNSは正しい（`nslookup ドメイン 8.8.8.8` が新IPを返す）
+- **HTTPなら通る**（`curl -I http://ドメイン` → 200/301/302）
+- PCのDNSキャッシュを削除しても直らない
+
+### 原因（2つの合わせ技）
+1. 再構築した新サーバーで **certbot 未実施** → nginx が **443 で待っていない**
+   （`sudo ss -tlnp | grep ':443'` → 何も出ない、が確定サイン）
+2. なのにブラウザは前のサーバー時代の **HSTS（このサイトはHTTPSで見る、という記憶）** を持っていて、
+   `http://` と打っても勝手に `https://` へ行く → 443は閉まってるので REFUSED
+
+「DNSが悪い」「キャッシュが悪い」に見えるが、実際は**サーバー側の443が閉じているだけ**。
+
+### 診断（この順で3コマンド・PCから）
+```bash
+nslookup ドメイン 8.8.8.8       # DNSはOK?（新IPが返るか）
+curl -I http://ドメイン          # 80番は生きてる?
+curl -I https://ドメイン         # 443番は? ← ここだけrefusedなら本ケース確定
+```
+
+### 直し方（サーバーで）
+```bash
+sudo ss -tlnp | grep -E ':80|:443'          # :443 が無いことを確認
+sudo vi /etc/nginx/sites-available/portal   # server_name _; → server_name ドメイン; (済みなら不要)
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d ドメイン             # リダイレクトは 2 を選択
+sudo ss -tlnp | grep ':443'                 # :443 が現れたらOK
+```
+- 途中で「1: Reinstall / 2: Renew & replace」と聞かれたら **1**（既に有効な証明書がある場合）
+- 「Could not automatically find a matching server block」と出たら `server_name` が未設定（上の vi の行）
+
+### 再発防止
+- **再構築チェックリスト（DEPLOY.md）の「certbot」を飛ばさない**。server_name 設定と certbot は2つで1セット
+- 動作確認は IP直打ち(http) だけで済ませず、**必ず `https://ドメイン` まで開いて完了とする**
+
+---
+
 ## ケースF. 外から繋がらない（でも localhost では繋がる）
 
 `curl -I http://localhost` は 200 なのに外部から見えない → **ファイアウォール**。
@@ -193,3 +233,6 @@ sudo ufw status                           # OS側: 80/443 が ALLOW か
 | 日付 | 症状 | 原因 | 対応 | 再発防止 |
 |------|------|------|------|----------|
 | 2026-06-23 | サイトが `ERR_CONNECTION_REFUSED`（SSHは可） | `security-headers.conf` の `server_tokens` が `nginx.conf` と重複し、自動更新でnginx再起動時に起動失敗 | 重複行を削除し `nginx -t` → `start` | confから`server_tokens`除去 / harden-server.shに自動ロールバック追加 / 外形監視を案内 |
+| 2026-07-02頃 | VPS体験期限切れで**全損**（1回目） | 再認証/更新忘れ。バックアップも同一VPS内で道連れ | 新VPSで再構築（データは復元不可） | オフサイトバックアップ(backup-to-discord.sh)導入 / DEPLOY.mdにIP変更チェックリスト |
+| 2026-07-07頃 | VPS体験期限切れで**全損**（2回目） | 同上（4GBプランは再認証2日ごとで猶予が短い） | 新VPSで再構築 | Gmail期限メール検知(GAS) / notify.sh --urgent-only 毎時再送 / no-ip仕様調査 |
+| 2026-07-08 | 再構築後 `https://` だけ `ERR_CONNECTION_REFUSED`（2回目） | certbot未実施で443閉鎖 + ブラウザのHSTS記憶 | server_name確認 → `certbot --nginx` で解消 | ケースE-2として手順化。「https://ドメインまで開いて完了」をルール化 |
