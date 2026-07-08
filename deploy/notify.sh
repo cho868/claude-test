@@ -93,14 +93,20 @@ if [ -n "$DOMAIN" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/cert.pem" ]; then
   fi
 fi
 
-# ===== no-ip の確認リマインド（無料は約30日ごとに確認が必要）=====
-NOIP_LINE="🌐 no-ip: 無料ドメインは約30日ごとに確認メールのクリックが必要"
+# ===== no-ip の確認リマインド =====
+# 公式仕様: 無料ホスト名は30日サイクル。23日目から確認可能(メールも23日目に届く)、
+# 30日で失効(名前解決が止まる)。⚠️ IP更新やDUCでは確認扱いにならない！
+# 確認方法: メールのリンク or マイページの Confirm ボタン。確認したら
+# /etc/portal-notify.conf の NOIP_LAST_CONFIRMED をその日付に更新すること。
+NOIP_LINE="🌐 no-ip: 無料ホスト名は30日ごとに確認必須（NOIP_LAST_CONFIRMED 未設定。確認した日を記入して）"
 if [ -n "$NOIP_LAST_CONFIRMED" ]; then
   noip_epoch=$(date -d "$NOIP_LAST_CONFIRMED" +%s 2>/dev/null || echo 0)
   if [ "$noip_epoch" -gt 0 ]; then
     noip_days=$(( (NOW_EPOCH - noip_epoch) / 86400 ))
-    if   [ "$noip_days" -ge 28 ]; then NOIP_LINE="🟠 no-ip 確認から${noip_days}日。**そろそろ確認を**（最終: $NOIP_LAST_CONFIRMED）"; URGENT="@everyone "
-    else NOIP_LINE="🌐 no-ip 確認から${noip_days}日（30日目安・最終: $NOIP_LAST_CONFIRMED）"; fi
+    noip_left=$(( 30 - noip_days ))
+    if   [ "$noip_days" -ge 27 ]; then NOIP_LINE="🔴 no-ip 失効まで残り${noip_left}日！ **今すぐ確認を**（メールのリンク or マイページのConfirm。IP更新では延長されない）"; URGENT="@everyone "
+    elif [ "$noip_days" -ge 23 ]; then NOIP_LINE="🟠 no-ip 確認期間に入りました（${noip_days}日経過・残り${noip_left}日）。確認メールが来ているはず。確認したら NOIP_LAST_CONFIRMED を更新"
+    else NOIP_LINE="🌐 no-ip 確認から${noip_days}日（次の確認は23日目〜30日目・最終: $NOIP_LAST_CONFIRMED）"; fi
   fi
 fi
 
