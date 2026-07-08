@@ -83,6 +83,10 @@ XServer は期限が近づくと
 `deploy/gmail-xserver-alert.gs`（Google Apps Script）が、このメールを **Gmail側で30分ごとに監視**し、
 見つけたら **本文の抜粋＋期限日＋更新ページへのリンク**を Discord / LINE に **繰り返し送る**。
 
+**no-ip の確認メール（confirm/expire）も同時に監視**する。no-ipは期限日が管理画面から分かりにくい
+（Active期間中は表示されない）ので、23日目に届く確認メールを検知して鳴らすのが確実。
+リンクをクリックしたら `/etc/portal-notify.conf` の `NOIP_LAST_CONFIRMED` を更新すること。
+
 **VPS上ではなく Google のサーバーで動く**のがポイント（VPSが死んでも監視は生きている。メール本文も読める）。
 
 ### セットアップ（5分・無料）
