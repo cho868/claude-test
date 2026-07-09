@@ -40,7 +40,7 @@
 | サービス | 用途 | 取得場所 | 設定場所 | ⚠️ 注意 |
 |---------|------|---------|---------|--------|
 | **Steam Web API** | いまプレイ中・共通所持・実績・プレイ時間 | https://steamcommunity.com/dev/apikey | `/var/www/portal/.env` の `STEAM_API_KEY` | キーはアカウントに常設（再取得はコピーし直すだけ）。サーバー全体で1つ |
-| **Discord Bot（server.js）** | Discord内の機能＋ポータルから設定編集 | 別リポジトリ（VPS上で常駐） | Bot側 `.env` の `ADMIN_KEY` ⇔ ポータル側 `.env` の `BOT_ADMIN_KEY`（**同じ値にする**） | localhost:3000 で待機。VPS再構築時はBotも立て直し＋キー合わせ直し |
+| **Discord Bot（server.js）** | Discord内の機能＋ポータルから設定編集 | 別リポジトリ（VPS上 **`/var/common/bot/ericochan-bot/`** に常駐） | Bot側 `/var/common/bot/ericochan-bot/.env` の `ADMIN_KEY` ⇔ ポータル側 `.env` の `BOT_ADMIN_KEY`（**同じ値にする**） | localhost:3000 で待機。VPS再構築時はBotも立て直し＋キー合わせ直し |
 | **DiceBear** | プロフィールの自動生成アバター | （不要・公開API） | コード内から直接利用 | アカウント不要・無料 |
 
 ## 🗝️ 秘密情報の所在まとめ（消えたら困る順）
