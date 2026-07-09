@@ -27,6 +27,8 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'birth_month' => ['nullable', 'integer', 'between:1,12', 'required_with:birth_day'],
+            'birth_day' => ['nullable', 'integer', 'between:1,31', 'required_with:birth_month'],
             'discord_id' => ['nullable', 'string', 'max:100'],
             'steam_id' => ['nullable', 'string', 'max:100'],
             'avatar_style' => ['required', 'in:emoji,dicebear'],
@@ -50,6 +52,9 @@ class ProfileController extends Controller
         }
 
         $user->update($validated);
+
+        // 誕生日を今日に設定した場合でも即お祝いが出るようにキャッシュを破棄
+        \Illuminate\Support\Facades\Cache::forget('birthday:today:' . now()->format('m-d'));
 
         return back()->with('status', 'プロフィールを更新しました。'
             . (! empty($validated['steam_id']) ? '（Steam ID: ' . $validated['steam_id'] . '）' : ''));

@@ -26,6 +26,8 @@ class User extends Authenticatable
         'avatar_color',
         'avatar_variant',
         'avatar_seed',
+        'birth_month',
+        'birth_day',
         'target_weight_kg',
         'weekly_exercise_goal',
     ];
@@ -44,6 +46,8 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'target_weight_kg' => 'decimal:2',
             'weekly_exercise_goal' => 'integer',
+            'birth_month' => 'integer',
+            'birth_day' => 'integer',
         ];
     }
 
@@ -51,6 +55,13 @@ class User extends Authenticatable
     public function getEmailForPasswordReset(): string
     {
         return (string) $this->username;
+    }
+
+    /** 今日が誕生日か */
+    public function isBirthdayToday(): bool
+    {
+        return $this->birth_month === (int) now()->format('n')
+            && $this->birth_day === (int) now()->format('j');
     }
 
     /** DiceBear（自動生成イラスト）のURL。アップロード不要・著作権フリー。 */
@@ -154,7 +165,7 @@ class User extends Authenticatable
     public function currentTitle(): ?Title
     {
         return $this->title
-            ?? Title::where('required_points', '<=', $this->points)
+            ?? Title::where('required_points', '<=', (int) $this->points)
                 ->orderByDesc('required_points')
                 ->first();
     }
@@ -164,7 +175,7 @@ class User extends Authenticatable
      */
     public function nextTitle(): ?Title
     {
-        return Title::where('required_points', '>', $this->points)
+        return Title::where('required_points', '>', (int) $this->points)
             ->orderBy('required_points')
             ->first();
     }

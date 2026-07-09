@@ -20,6 +20,24 @@
                        class="mt-1 w-full rounded-lg border-slate-200 bg-slate-50 text-slate-500 shadow-sm">
                 <p class="mt-1 text-xs text-slate-400">ログインIDは変更できません。</p>
             </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">🎂 誕生日</label>
+                <div class="mt-1 flex items-center gap-2">
+                    <select name="birth_month" class="rounded-lg border-slate-300 text-sm shadow-sm">
+                        <option value="">--</option>
+                        @foreach (range(1, 12) as $m)
+                            <option value="{{ $m }}" @selected(old('birth_month', $user->birth_month) == $m)>{{ $m }}</option>
+                        @endforeach
+                    </select><span class="text-sm text-slate-500">月</span>
+                    <select name="birth_day" class="rounded-lg border-slate-300 text-sm shadow-sm">
+                        <option value="">--</option>
+                        @foreach (range(1, 31) as $d)
+                            <option value="{{ $d }}" @selected(old('birth_day', $user->birth_day) == $d)>{{ $d }}</option>
+                        @endforeach
+                    </select><span class="text-sm text-slate-500">日</span>
+                </div>
+                <p class="mt-1 text-xs text-slate-400">登録すると当日にポータル全体でお祝いされます🎉（年は登録しません）</p>
+            </div>
             {{-- アバター(アップロード不要・著作権フリー) --}}
             <div class="rounded-xl bg-slate-50 p-4">
                 <h3 class="mb-3 text-sm font-bold text-slate-700">🙂 アイコン</h3>

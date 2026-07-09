@@ -81,7 +81,30 @@ class PointService
             $this->refreshTitle($user->refresh());
         });
 
+        // 🎂 誕生日ボーナス（年1回 +100pt）
+        $total += $this->awardBirthdayBonus($user);
+
         return $total;
+    }
+
+    /** 誕生日当日の初ログインで +100pt（年1回）。付与額を返す（対象外は0）。 */
+    public function awardBirthdayBonus(User $user): int
+    {
+        if (! $user->isBirthdayToday()) {
+            return 0;
+        }
+
+        $alreadyThisYear = PointLog::where('user_id', $user->id)
+            ->where('reason', 'birthday')
+            ->whereYear('created_at', now()->year)
+            ->exists();
+        if ($alreadyThisYear) {
+            return 0;
+        }
+
+        $this->award($user, 100, 'birthday', '🎂 誕生日ボーナス！おめでとう！');
+
+        return 100;
     }
 
     /**

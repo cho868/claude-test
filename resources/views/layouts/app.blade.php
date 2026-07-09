@@ -119,5 +119,6 @@
         {{ config('app.name') }} — 身内専用ポータル
     </footer>
 </div>
+<x-birthday-party />
 </body>
 </html>

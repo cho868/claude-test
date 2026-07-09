@@ -481,4 +481,38 @@ class PortalTest extends TestCase
         $this->actingAs($user)->get(route('arcade.index'))
             ->assertOk()->assertSee('200ms');
     }
+
+    public function test_birthday_bonus_and_celebration(): void
+    {
+        \Illuminate\Support\Facades\Cache::flush();
+        $today = now();
+        $bday = User::factory()->create([
+            'name' => 'ハッピー太郎',
+            'birth_month' => (int) $today->format('n'),
+            'birth_day' => (int) $today->format('j'),
+            'points' => 0,
+        ]);
+        $other = User::factory()->create(['birth_month' => 1, 'birth_day' => 1]);
+        if ((int) $today->format('n') === 1 && (int) $today->format('j') === 1) {
+            $other->update(['birth_month' => 6, 'birth_day' => 15]);
+        }
+
+        // 誕生日の本人: ログインボーナス(12) + 誕生日ボーナス(100)
+        $earned = app(PointService::class)->awardDailyLogin($bday);
+        $this->assertSame(112, $earned);
+        // 同日に再実行しても二重付与なし
+        $this->assertSame(0, app(PointService::class)->awardDailyLogin($bday->refresh()));
+        $this->assertDatabaseHas('point_logs', ['user_id' => $bday->id, 'reason' => 'birthday', 'amount' => 100]);
+
+        // 全員の画面にお祝いが出る（本人以外にも）
+        $this->actingAs($other)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('HAPPY BIRTHDAY')
+            ->assertSee('ハッピー太郎');
+
+        // 誕生日ではない日のユーザーだけなら出ない
+        \Illuminate\Support\Facades\Cache::flush();
+        $bday->update(['birth_month' => $today->copy()->addMonths(2)->month, 'birth_day' => 5]);
+        $this->actingAs($other)->get(route('dashboard'))->assertDontSee('HAPPY BIRTHDAY');
+    }
 }
