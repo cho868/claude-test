@@ -125,51 +125,59 @@
   const btn = document.getElementById('bday-again');
   const AVATAR_EMOJIS = @json($emojis).filter(Boolean);
 
-  // 萌えちびキャラ(オリジナル)。野球ユニフォーム女子: 髪色/髪型/チームカラーのバリエーション
+  // 萌えちびキャラ(オリジナル・令和仕様)。前髪しっかり/大きな瞳/アホ毛/セーラー服
   const GIRLS = [
-    { hair: '#f472b6', style: 'twin', uni: '#ef4444' },  // ピンクツインテ × 赤
-    { hair: '#fbbf24', style: 'pony', uni: '#3b82f6' },  // 金髪ポニテ × 青
-    { hair: '#a78bfa', style: 'bob',  uni: '#10b981' },  // 紫ボブ × 緑
-    { hair: '#7dd3fc', style: 'twin', uni: '#f59e0b' },  // 水色ツインテ × 橙
-    { hair: '#e2e8f0', style: 'pony', uni: '#a855f7' },  // 銀髪ポニテ × 紫
-    { hair: '#fb7185', style: 'bob',  uni: '#14b8a6' },  // 赤髪ボブ × 青緑
-    { hair: '#92400e', style: 'twin', uni: '#ec4899' },  // 茶髪ツインテ × ピンク
-    { hair: '#334155', style: 'pony', uni: '#facc15' },  // 黒髪ポニテ × 黄
+    { hair:'#ffb7d5', hairD:'#f48fb8', eye:'#e05a8a', uni:'#f43f5e', style:'twin', ribbon:'#ff5c8a' }, // 桜ピンクツインテ
+    { hair:'#ffe08a', hairD:'#f4c452', eye:'#3f7ad6', uni:'#3b82f6', style:'pony', ribbon:'#ef4444' }, // 金髪ポニテ
+    { hair:'#cdb4f6', hairD:'#b092ec', eye:'#8b5cf6', uni:'#10b981', style:'bob',  ribbon:'#f59e0b' }, // ラベンダーボブ
+    { hair:'#aee3ff', hairD:'#7fcdf6', eye:'#2e9edd', uni:'#f59e0b', style:'twin', ribbon:'#3b82f6' }, // 水色ツインテ
+    { hair:'#eceff4', hairD:'#cbd5e1', eye:'#a855f7', uni:'#a855f7', style:'pony', ribbon:'#f472b6' }, // 銀髪ポニテ
+    { hair:'#ffb3a0', hairD:'#f98d75', eye:'#0d9488', uni:'#14b8a6', style:'bob',  ribbon:'#f43f5e' }, // アプリコットボブ
   ];
 
-  function girlSVG({ hair, style, uni }) {
-    const skin = '#ffe4d0';
-    // 後ろ髪(髪型別) + キャップはツインテ以外
+  function girlSVG({ hair, hairD, eye, uni, style, ribbon }) {
+    const skin = '#ffe9dc';
+    // 後ろ髪(ボリューム層+サイドの房)
+    const backHair = `<ellipse cx="32" cy="24" rx="20" ry="17" fill="${hairD}"/>
+      <path d="M13 26 Q9 44 14 54 Q19 57 20 50 Q17 38 19 30 Z" fill="${hairD}"/>
+      <path d="M51 26 Q55 44 50 54 Q45 57 44 50 Q47 38 45 30 Z" fill="${hairD}"/>`;
     const tails =
       style === 'twin' ? `
-        <path class="cb-part cb-tail" d="M13 22 Q1 30 6 48 Q8 55 13 50 Q10 35 17 26 Z" fill="${hair}"/>
-        <path class="cb-part cb-tail" d="M51 22 Q63 30 58 48 Q56 55 51 50 Q54 35 47 26 Z" fill="${hair}"/>`
+        <g class="cb-part cb-tail"><path d="M12 26 Q-2 36 5 56 Q8 63 13 57 Q10 42 17 32 Z" fill="${hair}"/><path d="M9 40 Q7 48 9 53" stroke="${hairD}" stroke-width="1.2" fill="none"/></g>
+        <g class="cb-part cb-tail"><path d="M52 26 Q66 36 59 56 Q56 63 51 57 Q54 42 47 32 Z" fill="${hair}"/><path d="M55 40 Q57 48 55 53" stroke="${hairD}" stroke-width="1.2" fill="none"/></g>
+        <circle cx="14" cy="27" r="3" fill="${ribbon}"/><circle cx="50" cy="27" r="3" fill="${ribbon}"/>`
       : style === 'pony' ? `
-        <path class="cb-part cb-tail" d="M47 16 Q60 24 55 45 Q53 52 48 47 Q52 32 44 22 Z" fill="${hair}"/>`
-      : `<path d="M13 24 Q11 38 17 42 L20 30 Z" fill="${hair}"/><path d="M51 24 Q53 38 47 42 L44 30 Z" fill="${hair}"/>`;
-    const cap = style !== 'twin' ? `
-        <path d="M16 19 Q32 1 48 19 L48 22 Q32 12 16 22 Z" fill="${uni}"/>
-        <ellipse cx="49" cy="20" rx="7" ry="2.6" fill="${uni}" opacity=".9"/>
-        <circle cx="32" cy="8" r="2" fill="#fff" opacity=".85"/>`
-      : `<path d="M22 8 L26 3 L28 9 Z" fill="${uni}"/>`; // ツインテ勢はリボン
+        <g class="cb-part cb-tail"><path d="M44 12 Q62 18 58 44 Q56 54 50 49 Q54 32 42 20 Z" fill="${hair}"/><path d="M53 28 Q55 38 52 45" stroke="${hairD}" stroke-width="1.2" fill="none"/></g>
+        <circle cx="46" cy="16" r="2.8" fill="${ribbon}"/>`
+      : '';
     return `
-    <svg width="52" height="72" viewBox="0 0 64 88" xmlns="http://www.w3.org/2000/svg">
-      ${tails}
-      <g class="cb-part cb-arm" ><rect x="19" y="45" width="5.5" height="14" rx="2.7" fill="#fff" stroke="${uni}" stroke-width="1"/><circle cx="21.7" cy="60" r="2.6" fill="${skin}"/></g>
-      <g class="cb-part cb-arm r"><rect x="39.5" y="45" width="5.5" height="14" rx="2.7" fill="#fff" stroke="${uni}" stroke-width="1"/><circle cx="42.2" cy="60" r="2.6" fill="${skin}"/></g>
-      <g class="cb-part cb-leg" ><rect x="26" y="62" width="5.5" height="15" rx="2.7" fill="${skin}"/><ellipse cx="28.7" cy="78" rx="4" ry="2.6" fill="${uni}"/></g>
-      <g class="cb-part cb-leg r"><rect x="32.5" y="62" width="5.5" height="15" rx="2.7" fill="${skin}"/><ellipse cx="35.2" cy="78" rx="4" ry="2.6" fill="${uni}"/></g>
-      <rect x="24" y="42" width="16" height="16" rx="5" fill="#fff" stroke="${uni}" stroke-width="1.2"/>
-      <path d="M32 42 L28 48 L32 46 L36 48 Z" fill="${uni}"/>
-      <g class="cb-part cb-skirt"><path d="M22 55 L42 55 L46 68 L40 64 L36 69 L32 64 L28 69 L24 64 L18 68 Z" fill="${uni}"/></g>
-      <circle cx="32" cy="26" r="17" fill="${skin}"/>
-      <path d="M15 27 Q13 6 32 6 Q51 6 49 27 Q45 16 39 19 Q36 12 30 18 Q24 13 20 21 Q16 19 15 27 Z" fill="${hair}"/>
-      ${cap}
-      <ellipse cx="25" cy="30" rx="2.7" ry="4.2" fill="#334155"/><circle cx="24" cy="28.4" r="1.1" fill="#fff"/>
-      <ellipse cx="39" cy="30" rx="2.7" ry="4.2" fill="#334155"/><circle cx="38" cy="28.4" r="1.1" fill="#fff"/>
-      <ellipse cx="20.5" cy="35" rx="2.6" ry="1.5" fill="#fda4af" opacity=".75"/>
-      <ellipse cx="43.5" cy="35" rx="2.6" ry="1.5" fill="#fda4af" opacity=".75"/>
-      <path d="M29.5 37 Q32 39.5 34.5 37" stroke="#e11d48" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+    <svg width="54" height="78" viewBox="0 0 64 92" xmlns="http://www.w3.org/2000/svg">
+      ${backHair}${tails}
+      <g class="cb-part cb-arm"><path d="M22 49 Q17 52 17 60 Q17 63 20 62 Q23 58 24 52 Z" fill="#fff" stroke="${uni}" stroke-width="1"/><circle cx="18.5" cy="62" r="2.4" fill="${skin}"/></g>
+      <g class="cb-part cb-arm r"><path d="M42 49 Q47 52 47 60 Q47 63 44 62 Q41 58 40 52 Z" fill="#fff" stroke="${uni}" stroke-width="1"/><circle cx="45.5" cy="62" r="2.4" fill="${skin}"/></g>
+      <g class="cb-part cb-leg"><rect x="26" y="66" width="5.4" height="9" rx="2.6" fill="${skin}"/><rect x="26" y="73" width="5.4" height="6" rx="2.4" fill="#fff"/><ellipse cx="28.7" cy="81" rx="4" ry="2.6" fill="${uni}"/></g>
+      <g class="cb-part cb-leg r"><rect x="32.6" y="66" width="5.4" height="9" rx="2.6" fill="${skin}"/><rect x="32.6" y="73" width="5.4" height="6" rx="2.4" fill="#fff"/><ellipse cx="35.3" cy="81" rx="4" ry="2.6" fill="${uni}"/></g>
+      <rect x="24" y="47" width="16" height="15" rx="4" fill="#fff"/>
+      <path d="M25 47 L32 53 L39 47 L40 50.5 L32 56.5 L24 50.5 Z" fill="${uni}"/>
+      <path d="M31.5 56.5 Q26 53.5 25.5 57.5 Q25 61 30.5 59 Z" fill="${ribbon}"/>
+      <path d="M32.5 56.5 Q38 53.5 38.5 57.5 Q39 61 33.5 59 Z" fill="${ribbon}"/>
+      <circle cx="32" cy="57.5" r="2" fill="${ribbon}"/><circle cx="31.3" cy="56.8" r=".6" fill="#fff" opacity=".7"/>
+      <g class="cb-part cb-skirt"><path d="M23 60 L41 60 L45 73 L39 70 L35.5 74 L32 70 L28.5 74 L25 70 L19 73 Z" fill="${uni}"/>
+      <path d="M27 61 L26 69 M32 61 L32 69 M37 61 L38 69" stroke="#00000022" stroke-width="1" fill="none"/></g>
+      <ellipse cx="32" cy="31" rx="16.5" ry="15.5" fill="${skin}"/>
+      <path d="M15 33 Q13 12 32 11 Q51 12 49 33 Q47 27 44.5 33 Q43.5 24 39.5 31 Q37.5 22 32 30 Q26.5 22 24.5 31 Q20.5 24 19.5 33 Q17 27 15 33 Z" fill="${hair}"/>
+      <path d="M30 12 Q26 4 36 2 Q30 7 34 12 Z" fill="${hair}"/>
+      <path d="M19.5 31.5 Q23.5 29.5 27.5 31.8" stroke="#4a3232" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+      <ellipse cx="23.5" cy="36" rx="3.6" ry="4.8" fill="${eye}"/>
+      <ellipse cx="23.5" cy="36.8" rx="1.9" ry="2.9" fill="#3c2a3e"/>
+      <circle cx="22.2" cy="34" r="1.4" fill="#fff"/><circle cx="25" cy="38.3" r=".8" fill="#fff" opacity=".95"/>
+      <path d="M36.5 31.8 Q40.5 29.5 44.5 31.5" stroke="#4a3232" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+      <ellipse cx="40.5" cy="36" rx="3.6" ry="4.8" fill="${eye}"/>
+      <ellipse cx="40.5" cy="36.8" rx="1.9" ry="2.9" fill="#3c2a3e"/>
+      <circle cx="39.2" cy="34" r="1.4" fill="#fff"/><circle cx="42" cy="38.3" r=".8" fill="#fff" opacity=".95"/>
+      <ellipse cx="18.5" cy="40.5" rx="2.8" ry="1.6" fill="#ffb3c1" opacity=".8"/>
+      <ellipse cx="45.5" cy="40.5" rx="2.8" ry="1.6" fill="#ffb3c1" opacity=".8"/>
+      <path d="M30 42.5 Q31 44 32 42.8 Q33 44 34 42.5" stroke="#e11d48" stroke-width="1.3" fill="none" stroke-linecap="round"/>
     </svg>`;
   }
   const COLORS = ['#f43f5e','#f59e0b','#22c55e','#3b82f6','#a855f7','#ec4899','#14b8a6','#facc15'];
