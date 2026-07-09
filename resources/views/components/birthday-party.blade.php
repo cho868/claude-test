@@ -73,7 +73,7 @@
 
   /* ちびキャラ（画面下をちょこまか走る） */
   .bday-chibi {
-    position: fixed; bottom: 0; left: -60px; z-index: 91; pointer-events: none;
+    position: fixed; bottom: 0; left: -70px; z-index: 91; pointer-events: none;
     font-size: 34px; will-change: transform;
     animation: bdayRun var(--dur) linear infinite; animation-delay: var(--delay);
   }
@@ -81,8 +81,22 @@
   .bday-chibi.rev { animation-name: bdayRunRev; }
   .bday-chibi.rev > span { transform: scaleX(-1); }
   @keyframes bdayHop { from { transform: translateY(0) rotate(-8deg); } to { transform: translateY(-14px) rotate(8deg); } }
-  @keyframes bdayRun { to { transform: translateX(calc(100vw + 140px)); } }
-  @keyframes bdayRunRev { from { transform: translateX(calc(100vw + 140px)) scaleX(-1); } to { transform: translateX(0) scaleX(-1); } }
+  @keyframes bdayRun { to { transform: translateX(calc(100vw + 160px)); } }
+  @keyframes bdayRunRev { from { transform: translateX(calc(100vw + 160px)) scaleX(-1); } to { transform: translateX(0) scaleX(-1); } }
+
+  /* 萌えちびキャラ(オリジナルSVG): 走りに合わせて髪・手足・スカートが揺れる */
+  .bday-chibi svg { overflow: visible; display: block; }
+  .bday-chibi .cb-part { transform-box: fill-box; }
+  .bday-chibi .cb-leg { transform-origin: 50% 8%; animation: cbKick .28s ease-in-out infinite alternate; }
+  .bday-chibi .cb-leg.r { animation-delay: .14s; }
+  .bday-chibi .cb-arm { transform-origin: 50% 10%; animation: cbSwing .28s ease-in-out infinite alternate; }
+  .bday-chibi .cb-arm.r { animation-delay: .14s; }
+  .bday-chibi .cb-tail { transform-origin: 50% 12%; animation: cbTail .5s ease-in-out infinite alternate; }
+  .bday-chibi .cb-skirt { transform-origin: 50% 5%; animation: cbSkirt .3s ease-in-out infinite alternate; }
+  @keyframes cbKick { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
+  @keyframes cbSwing { from { transform: rotate(18deg); } to { transform: rotate(-18deg); } }
+  @keyframes cbTail { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
+  @keyframes cbSkirt { from { transform: skewX(-4deg); } to { transform: skewX(4deg); } }
 
   /* 再発射ボタン */
   #bday-again {
@@ -109,7 +123,55 @@
   const stage = document.getElementById('bday-stage');
   const banner = document.getElementById('bday-banner');
   const btn = document.getElementById('bday-again');
-  const CHIBIS = [...@json($emojis), '🐱', '🐶', '🦊', '🐸', '🐹', '🦄', '🤖', '🐧'].filter(Boolean);
+  const AVATAR_EMOJIS = @json($emojis).filter(Boolean);
+
+  // 萌えちびキャラ(オリジナル)。野球ユニフォーム女子: 髪色/髪型/チームカラーのバリエーション
+  const GIRLS = [
+    { hair: '#f472b6', style: 'twin', uni: '#ef4444' },  // ピンクツインテ × 赤
+    { hair: '#fbbf24', style: 'pony', uni: '#3b82f6' },  // 金髪ポニテ × 青
+    { hair: '#a78bfa', style: 'bob',  uni: '#10b981' },  // 紫ボブ × 緑
+    { hair: '#7dd3fc', style: 'twin', uni: '#f59e0b' },  // 水色ツインテ × 橙
+    { hair: '#e2e8f0', style: 'pony', uni: '#a855f7' },  // 銀髪ポニテ × 紫
+    { hair: '#fb7185', style: 'bob',  uni: '#14b8a6' },  // 赤髪ボブ × 青緑
+    { hair: '#92400e', style: 'twin', uni: '#ec4899' },  // 茶髪ツインテ × ピンク
+    { hair: '#334155', style: 'pony', uni: '#facc15' },  // 黒髪ポニテ × 黄
+  ];
+
+  function girlSVG({ hair, style, uni }) {
+    const skin = '#ffe4d0';
+    // 後ろ髪(髪型別) + キャップはツインテ以外
+    const tails =
+      style === 'twin' ? `
+        <path class="cb-part cb-tail" d="M13 22 Q1 30 6 48 Q8 55 13 50 Q10 35 17 26 Z" fill="${hair}"/>
+        <path class="cb-part cb-tail" d="M51 22 Q63 30 58 48 Q56 55 51 50 Q54 35 47 26 Z" fill="${hair}"/>`
+      : style === 'pony' ? `
+        <path class="cb-part cb-tail" d="M47 16 Q60 24 55 45 Q53 52 48 47 Q52 32 44 22 Z" fill="${hair}"/>`
+      : `<path d="M13 24 Q11 38 17 42 L20 30 Z" fill="${hair}"/><path d="M51 24 Q53 38 47 42 L44 30 Z" fill="${hair}"/>`;
+    const cap = style !== 'twin' ? `
+        <path d="M16 19 Q32 1 48 19 L48 22 Q32 12 16 22 Z" fill="${uni}"/>
+        <ellipse cx="49" cy="20" rx="7" ry="2.6" fill="${uni}" opacity=".9"/>
+        <circle cx="32" cy="8" r="2" fill="#fff" opacity=".85"/>`
+      : `<path d="M22 8 L26 3 L28 9 Z" fill="${uni}"/>`; // ツインテ勢はリボン
+    return `
+    <svg width="52" height="72" viewBox="0 0 64 88" xmlns="http://www.w3.org/2000/svg">
+      ${tails}
+      <g class="cb-part cb-arm" ><rect x="19" y="45" width="5.5" height="14" rx="2.7" fill="#fff" stroke="${uni}" stroke-width="1"/><circle cx="21.7" cy="60" r="2.6" fill="${skin}"/></g>
+      <g class="cb-part cb-arm r"><rect x="39.5" y="45" width="5.5" height="14" rx="2.7" fill="#fff" stroke="${uni}" stroke-width="1"/><circle cx="42.2" cy="60" r="2.6" fill="${skin}"/></g>
+      <g class="cb-part cb-leg" ><rect x="26" y="62" width="5.5" height="15" rx="2.7" fill="${skin}"/><ellipse cx="28.7" cy="78" rx="4" ry="2.6" fill="${uni}"/></g>
+      <g class="cb-part cb-leg r"><rect x="32.5" y="62" width="5.5" height="15" rx="2.7" fill="${skin}"/><ellipse cx="35.2" cy="78" rx="4" ry="2.6" fill="${uni}"/></g>
+      <rect x="24" y="42" width="16" height="16" rx="5" fill="#fff" stroke="${uni}" stroke-width="1.2"/>
+      <path d="M32 42 L28 48 L32 46 L36 48 Z" fill="${uni}"/>
+      <g class="cb-part cb-skirt"><path d="M22 55 L42 55 L46 68 L40 64 L36 69 L32 64 L28 69 L24 64 L18 68 Z" fill="${uni}"/></g>
+      <circle cx="32" cy="26" r="17" fill="${skin}"/>
+      <path d="M15 27 Q13 6 32 6 Q51 6 49 27 Q45 16 39 19 Q36 12 30 18 Q24 13 20 21 Q16 19 15 27 Z" fill="${hair}"/>
+      ${cap}
+      <ellipse cx="25" cy="30" rx="2.7" ry="4.2" fill="#334155"/><circle cx="24" cy="28.4" r="1.1" fill="#fff"/>
+      <ellipse cx="39" cy="30" rx="2.7" ry="4.2" fill="#334155"/><circle cx="38" cy="28.4" r="1.1" fill="#fff"/>
+      <ellipse cx="20.5" cy="35" rx="2.6" ry="1.5" fill="#fda4af" opacity=".75"/>
+      <ellipse cx="43.5" cy="35" rx="2.6" ry="1.5" fill="#fda4af" opacity=".75"/>
+      <path d="M29.5 37 Q32 39.5 34.5 37" stroke="#e11d48" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+    </svg>`;
+  }
   const COLORS = ['#f43f5e','#f59e0b','#22c55e','#3b82f6','#a855f7','#ec4899','#14b8a6','#facc15'];
   const BALLOONS = ['🎈','🎈','🎈','🟡','❤️','💙','💜'];
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -165,14 +227,18 @@
   function chibis() {
     if (chibisSpawned) return;
     chibisSpawned = true;
-    const n = Math.min(8, Math.max(4, CHIBIS.length));
-    for (let i = 0; i < n; i++) {
+    // 萌えちびキャラ6人 + 誕生日の人のアバター絵文字も一緒に走る
+    const lineup = [...GIRLS.slice(0, 6).map((g) => girlSVG(g)),
+                    ...AVATAR_EMOJIS.map((e) => `<span style="font-size:34px">${e}</span>`)];
+    lineup.forEach((html, i) => {
       const c = document.createElement('div');
       c.className = 'bday-chibi' + (Math.random() < .5 ? ' rev' : '');
-      c.innerHTML = `<span>${CHIBIS[i % CHIBIS.length]}</span>`;
-      c.style.cssText = `--dur:${rand(7,16)}s;--delay:${rand(0,6)}s;font-size:${rand(26,40)}px;bottom:${rand(0,3)}vh;`;
+      c.innerHTML = `<span>${html}</span>`;
+      const scale = rand(.8, 1.15);
+      c.style.cssText = `--dur:${rand(8,18)}s;--delay:${rand(0,6)}s;bottom:${rand(0,2)}vh;` +
+        `transform-origin:bottom;scale:${scale.toFixed(2)};`;
       document.body.appendChild(c);
-    }
+    });
   }
 
   function party(big) {
