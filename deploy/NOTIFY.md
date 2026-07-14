@@ -65,12 +65,36 @@ sudo crontab -e
 ```cron
 # 毎朝 9:00 に通常通知
 0 9 * * * /var/www/portal/deploy/notify.sh >> /var/log/portal-notify.log 2>&1
-# 毎時0分: 緊急事項（期限が今日/明日・SSL切れ・no-ip間近・メモリ逼迫）がある時だけ再送
+# 毎時0分: 緊急事項（VPS更新の残り時間・期限・SSL切れ・no-ip間近・メモリ逼迫）がある時だけ再送
 0 * * * * /var/www/portal/deploy/notify.sh --urgent-only >> /var/log/portal-notify.log 2>&1
+# 6時間ごと: 「VPS更新した？」確認（12時間更新の新仕様用。更新直後は黙る）
+0 */6 * * * /var/www/portal/deploy/notify.sh --reauth-remind >> /var/log/portal-notify.log 2>&1
 ```
 
 `--urgent-only` は**緊急が無ければ何も送らない**ので、毎時cronに入れても普段は静か。
 期限当日などは **1時間ごとに @everyone 付きで鳴り続けます**（対応するまで）。
+
+## 🕛 12時間更新の新仕様（24時間で終了）への対応
+
+2026-07 に無料VPSの仕様が変わり **「24時間で終了・12時間ごとに更新が必要」** になった。日単位の管理では間に合わないため、時間単位の仕組みにしている:
+
+1. `/etc/portal-notify.conf` に **`REAUTH_INTERVAL_HOURS="12"`** を設定（DAYSより優先）
+2. **VPSを更新するたびに** サーバーで:
+   ```bash
+   sudo /var/www/portal/deploy/renewed.sh
+   ```
+   → 更新時刻が記録され、Discordにも「✅更新しました／次の期限目安」が流れる（身内の誰が更新したかも共有できる）
+3. すると通知はこう動く:
+   - **毎朝の通知**: 「🟢 前回から◯h・残り約◯h」を表示
+   - **残り3時間以下**: 毎時 `--urgent-only` が **@everyone で鳴り続ける**
+   - **期限超過の疑い**: 🔴で即警告
+   - **6時間ごとの `--reauth-remind`**: 「更新した？」確認。ただし**更新から6時間未満なら黙る**（更新直後にうるさくない）
+   - 記録を忘れても `--reauth-remind` が6時間ごとに必ず鳴るので取りこぼしにくい
+
+> ⚠️ それでも**外出・睡眠中に12時間の壁は物理的に越えられない**ことがある。
+> この仕様で長期運用は現実的でないため、**Oracle Cloud Always Free（恒久無料・更新不要）への移行を強く推奨**。
+> `deploy/` のスクリプトはほぼそのまま使える。移行するまでの延命策として上記を使うこと。
+> 万一消えても、オフサイトバックアップ（backup-to-discord.sh）があれば30分で復旧できる。
 
 ---
 

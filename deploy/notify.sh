@@ -6,22 +6,34 @@
 # 使い方:
 #   1) 設定ファイルを作成:  sudo cp deploy/portal-notify.conf.example /etc/portal-notify.conf
 #                          sudo vi /etc/portal-notify.conf   （Webhook等を記入）
-#   2) cron に登録（毎朝9時 + 緊急時は毎時しつこく鳴らす例）:
+#   2) cron に登録（毎朝9時 + 緊急毎時 + 12時間更新仕様なら6時間ごとの更新確認）:
 #        sudo crontab -e
 #        0 9 * * *    /var/www/portal/deploy/notify.sh
 #        0 * * * *    /var/www/portal/deploy/notify.sh --urgent-only
+#        0 */6 * * *  /var/www/portal/deploy/notify.sh --reauth-remind
 #
-# --urgent-only: 緊急事項（体験期限が今日/明日・SSL切れ・no-ip期限間近・メモリ逼迫）が
-#                ある時だけ送信する。何もなければ黙る＝毎時cronに入れてもうるさくない。
+# --urgent-only:   緊急事項（VPS更新の残り時間・体験期限・SSL切れ・no-ip期限間近・
+#                  メモリ逼迫）がある時だけ送信。何もなければ黙る。
+# --reauth-remind: 「VPS更新した？」の定期確認。renewed.sh の記録が新しい
+#                  （間隔の半分未満）なら黙る。記録が無い/古い時だけ鳴る。
+#
+# 🔄 VPSを更新(再認証)したら毎回:  sudo /var/www/portal/deploy/renewed.sh
+#    → 更新時刻が記録され、残り時間ベースの正確なカウントダウンになる。
 set -euo pipefail
 
+MODE="daily"
+[ "${1:-}" = "--urgent-only" ] && MODE="urgent"
+[ "${1:-}" = "--reauth-remind" ] && MODE="reauth"
 URGENT_ONLY=0
-[ "${1:-}" = "--urgent-only" ] && URGENT_ONLY=1
+[ "$MODE" = "urgent" ] && URGENT_ONLY=1
 
 # ===== デフォルト値（/etc/portal-notify.conf で上書き）=====
 DISCORD_WEBHOOK=""                 # Discord Webhook URL（必須）
 TRIAL_END=""                       # 体験終了日 YYYY-MM-DD（分かれば。空なら未設定表示）
-REAUTH_INTERVAL_DAYS="4"           # 認証間隔: 2GB=4 / 4GB=2
+REAUTH_INTERVAL_DAYS="4"           # 認証間隔(日): 旧仕様用。HOURSを設定するとそちらが優先
+REAUTH_INTERVAL_HOURS=""           # 認証間隔(時間): 新仕様(12時間ごと更新)なら "12"
+RENEW_PANEL_URL="https://secure.xserver.ne.jp/xapanel/login/xvps/"  # 更新ページ
+RENEWAL_STAMP="/var/lib/portal-renewal"   # renewed.sh が更新時刻を記録するファイル
 HEALTHCHECK_URL=""                 # healthchecks.io の ping URL（任意・死活監視）
 HOST_LABEL="身内ポータル"           # 通知に出す名前
 SITE_URL=""                        # 公開URL（任意・通知に添える）
@@ -51,6 +63,34 @@ send_line() {
     -d "$(jq -nc --arg t "$msg" '{messages:[{type:"text",text:$t}]}')" >/dev/null || echo "[notify] LINE送信失敗"
 }
 
+# ===== --reauth-remind: 「VPS更新した？」の定期確認モード =====
+# renewed.sh の記録が新しい(間隔の半分未満)なら黙る。それ以外は必ず鳴らす。
+if [ "$MODE" = "reauth" ]; then
+  interval_h="${REAUTH_INTERVAL_HOURS:-$(( ${REAUTH_INTERVAL_DAYS:-4} * 24 ))}"
+  if [ -f "$RENEWAL_STAMP" ]; then
+    last="$(cat "$RENEWAL_STAMP" 2>/dev/null || echo 0)"
+    elapsed_h=$(( ( $(date +%s) - last ) / 3600 ))
+    if [ "$elapsed_h" -lt $(( interval_h / 2 )) ]; then
+      echo "[notify] 前回更新から${elapsed_h}h(<${interval_h}hの半分)のためリマインド不要"
+      exit 0
+    fi
+    left_h=$(( interval_h - elapsed_h ))
+    MSG="@everyone 🔄 **VPS更新チェック！** 前回更新から **${elapsed_h}時間**・期限まで残り約 **${left_h}時間**
+🔗 更新: ${RENEW_PANEL_URL}
+✅ 更新したら:  sudo /var/www/portal/deploy/renewed.sh"
+  else
+    MSG="@everyone 🔄 **VPS更新チェック！**（${interval_h}時間ごとに更新が必要な契約です）
+⏱️ 更新時刻が未記録のため残り時間を計算できません。更新のたびに
+　 sudo /var/www/portal/deploy/renewed.sh
+　 を実行すると、正確なカウントダウン通知になります
+🔗 更新: ${RENEW_PANEL_URL}"
+  fi
+  send_discord "$MSG"
+  send_line "$MSG"
+  echo "[notify] reauthリマインドを送信しました"
+  exit 0
+fi
+
 # ===== サーバーの状態 =====
 UPTIME="$(uptime -p 2>/dev/null || echo '不明')"
 DISK="$(df -h / | awk 'NR==2{print $5" 使用 ("$4" 空き)"}')"
@@ -79,6 +119,31 @@ if [ -n "$TRIAL_END" ]; then
   else
     COUNTDOWN_LINE="🟢 残り ${days_left} 日（終了日: $TRIAL_END）"
   fi
+fi
+
+# ===== VPS更新(再認証)の残り時間 =====
+# REAUTH_INTERVAL_HOURS 設定時(12時間更新の新仕様)は時間単位でカウントダウン。
+# renewed.sh の記録があれば正確な残り時間、残り3時間以下で毎時@everyone。
+if [ -n "$REAUTH_INTERVAL_HOURS" ]; then
+  REAUTH_LINE="🔐 VPS更新: ${REAUTH_INTERVAL_HOURS}時間ごとに更新必須（忘れると消滅！更新後は renewed.sh で記録）"
+  if [ -f "$RENEWAL_STAMP" ]; then
+    last="$(cat "$RENEWAL_STAMP" 2>/dev/null || echo 0)"
+    if [ "$last" -gt 0 ]; then
+      elapsed_h=$(( ( $(date +%s) - last ) / 3600 ))
+      left_h=$(( REAUTH_INTERVAL_HOURS - elapsed_h ))
+      if [ "$left_h" -le 0 ]; then
+        REAUTH_LINE="🔴 VPS更新期限を**超過している可能性**！今すぐ確認 → ${RENEW_PANEL_URL}"
+        URGENT="@everyone "
+      elif [ "$left_h" -le 3 ]; then
+        REAUTH_LINE="🔴 VPS更新まで残り約 **${left_h}時間**！ → ${RENEW_PANEL_URL}"
+        URGENT="@everyone "
+      else
+        REAUTH_LINE="🟢 VPS更新: 前回から${elapsed_h}h・残り約${left_h}h（${REAUTH_INTERVAL_HOURS}hごと）"
+      fi
+    fi
+  fi
+else
+  REAUTH_LINE="🔐 認証リマインド: ${REAUTH_INTERVAL_DAYS}日ごとに XServer の管理画面で認証を（忘れると停止）"
 fi
 
 # ===== Let's Encrypt 証明書の残り日数 =====
@@ -130,7 +195,7 @@ fi
 # ===== メッセージ組み立て =====
 MSG="${URGENT}**${HOST_LABEL}** 稼働中 ✅（$TODAY）
 ${COUNTDOWN_LINE}
-🔐 認証リマインド: ${REAUTH_INTERVAL_DAYS}日ごとに XServer の管理画面で認証を（忘れると停止）
+${REAUTH_LINE}
 ${NOIP_LINE}"
 [ -n "$CERT_LINE" ] && MSG="${MSG}
 ${CERT_LINE}"

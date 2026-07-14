@@ -13,8 +13,17 @@ SITE_URL="https://madgear.sytes.net"
 # 体験終了日（分かれば YYYY-MM-DD。空でも可。分かり次第ここに記入）
 TRIAL_END=""
 
-# 認証間隔（日）: 2GBプラン=4 / 4GBプラン=2（4GBは2日ごとに再認証が必要！）
+# 認証間隔（日）: 旧仕様用。下の HOURS を設定するとそちらが優先される
 REAUTH_INTERVAL_DAYS="4"
+
+# 認証間隔（時間）: 新仕様（24時間で終了・12時間ごとに更新）なら "12" を設定。
+# 設定すると時間単位のカウントダウンになり、更新のたびに
+#   sudo /var/www/portal/deploy/renewed.sh
+# を実行すれば「残り◯時間」が正確になる（残り3時間で毎時@everyone）
+REAUTH_INTERVAL_HOURS="12"
+
+# XServerの更新ページURL（リマインドに添付。実際の更新画面のURLに変えてもOK）
+RENEW_PANEL_URL="https://secure.xserver.ne.jp/xapanel/login/xvps/"
 
 # no-ip を最後に確認した日（YYYY-MM-DD）。確認するたびに更新すると残り日数を計算します
 NOIP_LAST_CONFIRMED=""

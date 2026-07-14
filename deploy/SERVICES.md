@@ -20,7 +20,7 @@
 
 | サービス | 用途 | 管理画面 | 設定場所 | ⚠️ 期限・注意 |
 |---------|------|---------|---------|--------------|
-| **XServer VPS** | サーバー本体（無料体験） | https://vps.xserver.ne.jp/ | パケットフィルターで22/80/443を許可 | **再認証: 2GB=4日 / 4GB=2日ごと**。期限メール到着日=更新期限日。忘れると**VPSごと消える**（2回経験済み） |
+| **XServer VPS** | サーバー本体（無料体験） | https://vps.xserver.ne.jp/ | パケットフィルターで22/80/443を許可 | ⚠️**新仕様(2026-07〜): 24時間で終了・12時間ごとに更新必須**。更新のたびに `sudo deploy/renewed.sh` で記録。忘れると**VPSごと消える**（2回経験済み）。長期運用はOracle Always Free移行を推奨 |
 | **no-ip** | 無料ドメイン `madgear.sytes.net` | https://my.noip.com/ | Dynamic DNS → ホスト名のIPv4 | **30日ごとに確認クリック必須**（23日目にメール）。**IP更新では延長されない**。失効すると名前解決が止まる |
 | **Let's Encrypt** | 無料SSL証明書 | （なし・certbotで管理） | サーバー上 `sudo certbot` | 更新は自動（certbot.timer）。**VPS再構築時は `certbot --nginx -d ドメイン` を忘れない**（ケースE-2） |
 | **GitHub** | コード・手順書・スクリプト置き場 | https://github.com/cho868/claude-test | `deploy-app.sh main` で取得 | ここにあるものは消えない。**DBと.envだけはGitに無い**ので別途保護 |
