@@ -104,6 +104,11 @@ class User extends Authenticatable
         return $this->hasMany(Memo::class);
     }
 
+    public function whiteboards(): HasMany
+    {
+        return $this->hasMany(Whiteboard::class);
+    }
+
     public function tournaments(): HasMany
     {
         return $this->hasMany(Tournament::class);

@@ -25,7 +25,8 @@ REAUTH_INTERVAL_HOURS="12"
 # XServerの更新ページURL（リマインドに添付。実際の更新画面のURLに変えてもOK）
 RENEW_PANEL_URL="https://secure.xserver.ne.jp/xapanel/login/xvps/"
 
-# no-ip を最後に確認した日（YYYY-MM-DD）。確認するたびに更新すると残り日数を計算します
+# no-ip を最後に確認した日（YYYY-MM-DD）。23日目に🟠・27日目に🔴@everyone。
+# 確認するたびに手で書くか、 sudo deploy/noip-confirmed.sh を実行すると今日付で自動記録
 NOIP_LAST_CONFIRMED=""
 
 # healthchecks.io の ping URL（無料登録 → Check 作成で取得。死活監視。任意）

@@ -170,7 +170,8 @@ sudo certbot renew --dry-run               # 更新テスト
 
 運用ルール:
 1. 確認メール（件名に "Confirm" / No-IP から）が来たら**即クリック**
-2. クリックしたら `/etc/portal-notify.conf` の `NOIP_LAST_CONFIRMED` をその日付に更新
+2. クリックしたらサーバーで **`sudo /var/www/portal/deploy/noip-confirmed.sh`** を実行
+   （`NOIP_LAST_CONFIRMED` を今日付で自動記録＋Discordに共有。手で編集してもよい）
    → notify.sh が「23日目〜」で🟠、「27日目〜」で🔴@everyone（毎時再送対象）を出す
 3. いま何日目か分からない場合は **no-ip のマイページ → Dynamic DNS** でホスト名の有効期限が見られるので、一度ログインして確認する
 

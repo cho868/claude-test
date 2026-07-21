@@ -515,4 +515,41 @@ class PortalTest extends TestCase
         $bday->update(['birth_month' => $today->copy()->addMonths(2)->month, 'birth_day' => 5]);
         $this->actingAs($other)->get(route('dashboard'))->assertDontSee('HAPPY BIRTHDAY');
     }
+
+    private const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
+
+    public function test_whiteboard_create_save_and_share(): void
+    {
+        $author = User::factory()->create(['points' => 0]);
+        $other = User::factory()->create();
+
+        // 保存 → +5pt・DBに残る
+        $this->actingAs($author)->post(route('whiteboards.store'), [
+            'title' => '買い物メモ',
+            'image_data' => self::PNG_1PX,
+            'is_public' => '1',
+        ])->assertRedirect();
+        $board = \App\Models\Whiteboard::first();
+        $this->assertSame('買い物メモ', $board->title);
+        $this->assertSame(5, (int) $author->refresh()->points);
+
+        // 身内(別ユーザー)からも一覧・表示できる
+        $this->actingAs($other)->get(route('whiteboards.index'))->assertOk()->assertSee('買い物メモ');
+        $this->actingAs($other)->get(route('whiteboards.show', $board))->assertOk();
+
+        // 非公開なら他人は403・一覧に出ない
+        $board->update(['is_public' => false]);
+        $this->actingAs($other)->get(route('whiteboards.show', $board))->assertForbidden();
+        $this->actingAs($other)->get(route('whiteboards.index'))->assertDontSee('買い物メモ');
+
+        // 他人は編集・削除できない
+        $this->actingAs($other)->get(route('whiteboards.edit', $board))->assertForbidden();
+        $this->actingAs($other)->delete(route('whiteboards.destroy', $board))->assertForbidden();
+
+        // PNG以外のdataURLは弾く
+        $this->actingAs($author)->post(route('whiteboards.store'), [
+            'title' => '不正',
+            'image_data' => 'data:text/html;base64,PHNjcmlwdD4=',
+        ])->assertSessionHasErrors('image_data');
+    }
 }

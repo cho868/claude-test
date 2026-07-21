@@ -61,6 +61,7 @@
                         ['schedule.index', '📅', '予定', '予定と出欠管理'],
                         ['documents.index', '📚', '資料', '手順書を共有'],
                         ['memos.index', '📝', 'メモ', '攻略メモを共有'],
+                        ['whiteboards.index', '🖊️', 'ホワイトボード', '手書きで共有'],
                         ['links.index', '🔗', 'リンク集', 'ツールへの入口'],
                     ],
                     '⚙️ その他' => array_values(array_filter([

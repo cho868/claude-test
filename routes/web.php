@@ -10,6 +10,7 @@ use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FitnessController;
 use App\Http\Controllers\LinkController;
+use App\Http\Controllers\WhiteboardController;
 use App\Http\Controllers\MatchRecordController;
 use App\Http\Controllers\PokemonController;
 use App\Http\Controllers\SocialGameController;
@@ -93,6 +94,10 @@ Route::middleware('auth')->group(function () {
     Route::get('steam', [SteamController::class, 'index'])->name('steam.index');
     Route::get('steam/mine', [SteamController::class, 'mine'])->name('steam.mine');
     Route::get('steam/achievements', [SteamController::class, 'achievements'])->name('steam.achievements');
+
+    // 手書きホワイトボード(スマホで書いて家で確認)
+    Route::resource('whiteboards', WhiteboardController::class)->except(['show']);
+    Route::get('whiteboards/{whiteboard}', [WhiteboardController::class, 'show'])->name('whiteboards.show');
 
     // リンク集(身内で共有するブックマーク)
     Route::get('links', [LinkController::class, 'index'])->name('links.index');
