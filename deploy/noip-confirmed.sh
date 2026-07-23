@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
 #
 # no-ip の無料ホスト名を確認(Confirm)した直後に実行して、確認日を記録する。
-#   sudo /var/www/portal/deploy/noip-confirmed.sh
+#   sudo /var/www/portal/deploy/noip-confirmed.sh              # 今日を記録
+#   sudo /var/www/portal/deploy/noip-confirmed.sh 2026-07-21   # 過去日を指定
 #
-# /etc/portal-notify.conf の NOIP_LAST_CONFIRMED を今日の日付に書き換える。
+# /etc/portal-notify.conf の NOIP_LAST_CONFIRMED を指定日(既定は今日)に書き換える。
 # 以降 notify.sh が「確認から◯日／残り◯日」を計算し、23日目に🟠・27日目に
 # 🔴@everyone を出す（30日で失効する前に必ず鳴る）。
 set -euo pipefail
 
 CONF="/etc/portal-notify.conf"
-TODAY="$(date +%F)"
+TODAY="${1:-$(date +%F)}"
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "root で実行してください:  sudo $0"; exit 1
+  echo "root で実行してください:  sudo $0 [YYYY-MM-DD]"; exit 1
 fi
+# 日付の妥当性チェック（不正な引数で設定を壊さない）
+if ! date -d "$TODAY" +%F >/dev/null 2>&1; then
+  echo "日付の形式が不正です: $TODAY（例: 2026-07-21）"; exit 1
+fi
+TODAY="$(date -d "$TODAY" +%F)"
 if [ ! -f "$CONF" ]; then
   echo "設定ファイルがありません: $CONF（先に portal-notify.conf.example からコピーしてください）"; exit 1
 fi
