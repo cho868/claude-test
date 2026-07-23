@@ -40,6 +40,7 @@ SITE_URL=""                        # 公開URL（任意・通知に添える）
 DOMAIN=""                          # 証明書チェック用ドメイン（例 madgear.sytes.net）
 NOIP_LAST_CONFIRMED=""             # no-ip を最後に確認した日 YYYY-MM-DD（無料は約30日ごと確認）
 LINE_TOKEN=""                      # LINE Messaging API のチャネルアクセストークン（任意）
+LINE_URGENT_ONLY="1"               # 1=LINEは緊急時のみ送る(月200通の無料枠節約)。0=毎回送る
 MEM_ALERT_THRESHOLD="85"           # メモリ使用率がこの%以上で警告（@everyone）
 
 [ -f /etc/portal-notify.conf ] && . /etc/portal-notify.conf
@@ -217,7 +218,10 @@ ${MSG}"
 fi
 
 send_discord "$MSG"
-send_line "$MSG"
+# LINEは無料枠(月200通)節約のため、既定では緊急時($URGENT)のみ。毎回送るなら LINE_URGENT_ONLY=0
+if [ "$LINE_URGENT_ONLY" != "1" ] || [ -n "$URGENT" ]; then
+  send_line "$MSG"
+fi
 
 # ===== 死活監視 ping（このスクリプトが動いた＝サーバー生存）=====
 # 一定時間 ping が来ないと healthchecks.io 側から「落ちた」通知が飛ぶ。

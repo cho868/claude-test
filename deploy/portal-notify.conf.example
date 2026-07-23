@@ -37,6 +37,9 @@ HOST_LABEL="身内ポータル"
 
 # LINE 通知（任意）: Messaging API のチャネルアクセストークン。Botを友だち追加した人全員に届く
 LINE_TOKEN=""
+# LINEは無料枠が月200通(配信数×友だち人数)。1=緊急時のみ送る(推奨)。0=毎回送る
+# 毎朝の「稼働中✅」までLINEに流すと枠を使い切って月末まで届かなくなる
+LINE_URGENT_ONLY="1"
 
 # メモリ使用率アラートのしきい値（%。これ以上でDiscord/LINEに警告）
 MEM_ALERT_THRESHOLD="85"
