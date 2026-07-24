@@ -24,6 +24,7 @@ set -euo pipefail
 MODE="daily"
 [ "${1:-}" = "--urgent-only" ] && MODE="urgent"
 [ "${1:-}" = "--reauth-remind" ] && MODE="reauth"
+[ "${1:-}" = "--vps-final" ] && MODE="vpsfinal"
 URGENT_ONLY=0
 [ "$MODE" = "urgent" ] && URGENT_ONLY=1
 
@@ -42,6 +43,8 @@ DOMAIN=""                          # 証明書チェック用ドメイン（例 
 NOIP_LAST_CONFIRMED=""             # no-ip を最後に確認した日 YYYY-MM-DD（無料は約30日ごと確認）
 LINE_TOKEN=""                      # LINE Messaging API のチャネルアクセストークン（任意）
 LINE_URGENT_ONLY="1"               # 1=LINEは緊急時のみ送る(月200通の無料枠節約)。0=毎回送る
+LINE_MIN_INTERVAL_MIN="30"         # LINEはこの分数より短い間隔では送らない(無料枠を守る)
+LINE_STAMP="/var/lib/portal-line-last"   # 最後にLINEを送った時刻の記録
 MEM_ALERT_THRESHOLD="85"           # メモリ使用率がこの%以上で警告（@everyone）
 
 [ -f /etc/portal-notify.conf ] && . /etc/portal-notify.conf
@@ -56,9 +59,19 @@ send_discord() {
 }
 
 # ===== LINE 送信（Messaging API の broadcast。Botを友だち追加した全員に届く）=====
+# 無料枠(月200通=配信数×友だち人数)を守るため、最低送信間隔を空ける。
+# Discordは全通知が残るので、LINEは間引かれても情報は失われない。
 send_line() {
   local msg="$1"
   [ -z "$LINE_TOKEN" ] && return 0
+  if [ -f "$LINE_STAMP" ]; then
+    local since=$(( ( $(date +%s) - $(cat "$LINE_STAMP" 2>/dev/null || echo 0) ) / 60 ))
+    if [ "$since" -lt "${LINE_MIN_INTERVAL_MIN:-30}" ]; then
+      echo "[notify] LINE抑制（前回から${since}分 < ${LINE_MIN_INTERVAL_MIN}分）"
+      return 0
+    fi
+  fi
+  date +%s > "$LINE_STAMP" 2>/dev/null || true
   curl -fsS -m 15 -X POST https://api.line.me/v2/bot/message/broadcast \
     -H "Authorization: Bearer ${LINE_TOKEN}" \
     -H "Content-Type: application/json" \
@@ -75,12 +88,17 @@ if [ "$MODE" = "reauth" ]; then
   if [ -f "$RENEWAL_STAMP" ]; then
     last="$(cat "$RENEWAL_STAMP" 2>/dev/null || echo 0)"
     elapsed_h=$(( ( $(date +%s) - last ) / 3600 ))
+    left_h=$(( interval_h - elapsed_h ))
     if [ "$elapsed_h" -lt "$open_after" ]; then
       open_in=$(( open_after - elapsed_h ))
       echo "[notify] まだ更新不可(あと約${open_in}h)のためリマインド不要"
       exit 0
     fi
-    left_h=$(( interval_h - elapsed_h ))
+    if [ "$left_h" -le 0 ]; then
+      # 期限超過＝消えている可能性。ここで鳴らしても手遅れなので黙る（超過連呼はしない）
+      echo "[notify] 期限超過のためreauthリマインドはスキップ"
+      exit 0
+    fi
     MSG="@everyone 🔄 **VPS更新できます！** 更新可能時間に入りました・期限まで残り約 **${left_h}時間**
 🔗 更新: ${RENEW_PANEL_URL}
 ✅ 更新したら:  sudo /var/www/portal/deploy/renewed.sh"
@@ -93,6 +111,26 @@ if [ "$MODE" = "reauth" ]; then
   send_discord "$MSG"
   send_line "$MSG"
   echo "[notify] reauthリマインドを送信しました"
+  exit 0
+fi
+
+# ===== --vps-final: 期限1時間前を10分ごとに鳴らす専用モード（VPS更新のみ）=====
+# cron: */10 * * * * で回す。残り1時間以内のときだけ @everyone。超過時は鳴らさない。
+if [ "$MODE" = "vpsfinal" ]; then
+  [ -n "$REAUTH_INTERVAL_HOURS" ] && [ -f "$RENEWAL_STAMP" ] || exit 0
+  last="$(cat "$RENEWAL_STAMP" 2>/dev/null || echo 0)"
+  [ "$last" -gt 0 ] || exit 0
+  left_min=$(( REAUTH_INTERVAL_HOURS * 60 - ( $(date +%s) - last ) / 60 ))
+  if [ "$left_min" -gt 0 ] && [ "$left_min" -le 60 ]; then
+    MSG="@everyone 🔴🔴 **VPS更新の期限まで残り ${left_min}分！** 今すぐ更新を！
+🔗 ${RENEW_PANEL_URL}
+✅ 更新したら:  sudo /var/www/portal/deploy/renewed.sh"
+    send_discord "$MSG"
+    send_line "$MSG"
+    echo "[notify] vps-final: 残り${left_min}分を通知"
+  else
+    echo "[notify] vps-final: 対象外（残り${left_min}分）"
+  fi
   exit 0
 fi
 
@@ -140,12 +178,11 @@ if [ -n "$REAUTH_INTERVAL_HOURS" ]; then
       elapsed_h=$(( ( $(date +%s) - last ) / 3600 ))
       left_h=$(( REAUTH_INTERVAL_HOURS - elapsed_h ))
       open_in=$(( open_after - elapsed_h ))
+      # ※ VPSの緊急連打(残り1時間の10分ごと)は --vps-final が担当。ここは状態表示のみ。
       if [ "$left_h" -le 0 ]; then
-        REAUTH_LINE="🔴 VPS更新期限を**超過している可能性**！今すぐ確認 → ${RENEW_PANEL_URL}"
-        URGENT="@everyone "
-      elif [ "$left_h" -le 3 ]; then
-        REAUTH_LINE="🔴 VPS更新まで残り約 **${left_h}時間**！ → ${RENEW_PANEL_URL}"
-        URGENT="@everyone "
+        REAUTH_LINE="⚫ VPSが**消えた可能性があります**（更新期限を超過）。繋がらなければ再構築を → deploy/DEPLOY.md"
+      elif [ "$left_h" -le 1 ]; then
+        REAUTH_LINE="🔴 VPS更新まで残り約1時間！今すぐ → ${RENEW_PANEL_URL}"
       elif [ "$elapsed_h" -ge "$open_after" ]; then
         REAUTH_LINE="🟠 VPS更新できます（残り約${left_h}h）→ ${RENEW_PANEL_URL}"
       else
