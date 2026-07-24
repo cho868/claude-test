@@ -16,11 +16,12 @@ TRIAL_END=""
 # 認証間隔（日）: 旧仕様用。下の HOURS を設定するとそちらが優先される
 REAUTH_INTERVAL_DAYS="4"
 
-# 認証間隔（時間）: 新仕様（24時間で終了・12時間ごとに更新）なら "12" を設定。
-# 設定すると時間単位のカウントダウンになり、更新のたびに
-#   sudo /var/www/portal/deploy/renewed.sh
-# を実行すれば「残り◯時間」が正確になる（残り3時間で毎時@everyone）
-REAUTH_INTERVAL_HOURS="12"
+# 有効期限（時間）: 24時間で終了する契約なら "24"。
+# 更新できるのは期限の RENEW_WINDOW_HOURS 時間前から（XServerは12時間前）。
+# 更新できない時間帯は鳴らさず、更新可能になってから通知する。
+# 更新のたびに sudo /var/www/portal/deploy/renewed.sh を実行すると正確になる。
+REAUTH_INTERVAL_HOURS="24"
+RENEW_WINDOW_HOURS="12"
 
 # XServerの更新ページURL（リマインドに添付。実際の更新画面のURLに変えてもOK）
 RENEW_PANEL_URL="https://secure.xserver.ne.jp/xapanel/login/xvps/"

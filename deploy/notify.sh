@@ -31,7 +31,8 @@ URGENT_ONLY=0
 DISCORD_WEBHOOK=""                 # Discord Webhook URL（必須）
 TRIAL_END=""                       # 体験終了日 YYYY-MM-DD（分かれば。空なら未設定表示）
 REAUTH_INTERVAL_DAYS="4"           # 認証間隔(日): 旧仕様用。HOURSを設定するとそちらが優先
-REAUTH_INTERVAL_HOURS=""           # 認証間隔(時間): 新仕様(12時間ごと更新)なら "12"
+REAUTH_INTERVAL_HOURS=""           # 有効期限(時間): 24時間契約なら "24"
+RENEW_WINDOW_HOURS="12"            # 期限の何時間前から更新できるか（XServerは12）
 RENEW_PANEL_URL="https://secure.xserver.ne.jp/xapanel/login/xvps/"  # 更新ページ
 RENEWAL_STAMP="/var/lib/portal-renewal"   # renewed.sh が更新時刻を記録するファイル
 HEALTHCHECK_URL=""                 # healthchecks.io の ping URL（任意・死活監視）
@@ -64,26 +65,29 @@ send_line() {
     -d "$(jq -nc --arg t "$msg" '{messages:[{type:"text",text:$t}]}')" >/dev/null || echo "[notify] LINE送信失敗"
 }
 
-# ===== --reauth-remind: 「VPS更新した？」の定期確認モード =====
-# renewed.sh の記録が新しい(間隔の半分未満)なら黙る。それ以外は必ず鳴らす。
+# ===== --reauth-remind: 「VPS更新できる？」の定期確認モード =====
+# 更新できるのは期限の RENEW_WINDOW_HOURS 時間前から。それ以前は更新しても
+# 意味がないので黙る。更新可能時間に入ってから鳴らす。
 if [ "$MODE" = "reauth" ]; then
   interval_h="${REAUTH_INTERVAL_HOURS:-$(( ${REAUTH_INTERVAL_DAYS:-4} * 24 ))}"
+  window_h="${RENEW_WINDOW_HOURS:-12}"
+  open_after=$(( interval_h - window_h ))
   if [ -f "$RENEWAL_STAMP" ]; then
     last="$(cat "$RENEWAL_STAMP" 2>/dev/null || echo 0)"
     elapsed_h=$(( ( $(date +%s) - last ) / 3600 ))
-    if [ "$elapsed_h" -lt $(( interval_h / 2 )) ]; then
-      echo "[notify] 前回更新から${elapsed_h}h(<${interval_h}hの半分)のためリマインド不要"
+    if [ "$elapsed_h" -lt "$open_after" ]; then
+      open_in=$(( open_after - elapsed_h ))
+      echo "[notify] まだ更新不可(あと約${open_in}h)のためリマインド不要"
       exit 0
     fi
     left_h=$(( interval_h - elapsed_h ))
-    MSG="@everyone 🔄 **VPS更新チェック！** 前回更新から **${elapsed_h}時間**・期限まで残り約 **${left_h}時間**
+    MSG="@everyone 🔄 **VPS更新できます！** 更新可能時間に入りました・期限まで残り約 **${left_h}時間**
 🔗 更新: ${RENEW_PANEL_URL}
 ✅ 更新したら:  sudo /var/www/portal/deploy/renewed.sh"
   else
-    MSG="@everyone 🔄 **VPS更新チェック！**（${interval_h}時間ごとに更新が必要な契約です）
-⏱️ 更新時刻が未記録のため残り時間を計算できません。更新のたびに
-　 sudo /var/www/portal/deploy/renewed.sh
-　 を実行すると、正確なカウントダウン通知になります
+    MSG="@everyone 🔄 **VPS更新チェック！**（有効${interval_h}h・更新は期限${window_h}h前から）
+⏱️ 更新時刻が未記録です。更新のたびに sudo /var/www/portal/deploy/renewed.sh を実行すると
+　 「更新できる時間になったら鳴らす」正確な通知になります
 🔗 更新: ${RENEW_PANEL_URL}"
   fi
   send_discord "$MSG"
@@ -123,23 +127,29 @@ if [ -n "$TRIAL_END" ]; then
 fi
 
 # ===== VPS更新(再認証)の残り時間 =====
-# REAUTH_INTERVAL_HOURS 設定時(12時間更新の新仕様)は時間単位でカウントダウン。
-# renewed.sh の記録があれば正確な残り時間、残り3時間以下で毎時@everyone。
+# モデル: 有効期限 REAUTH_INTERVAL_HOURS 時間・更新できるのは期限の
+# RENEW_WINDOW_HOURS 時間前から。更新できない時間帯は緑表示のみ(鳴らさない)。
+# 更新可能時間に入ったら🟠、期限3時間前から🔴@everyone。renewed.sh の記録が前提。
 if [ -n "$REAUTH_INTERVAL_HOURS" ]; then
-  REAUTH_LINE="🔐 VPS更新: ${REAUTH_INTERVAL_HOURS}時間ごとに更新必須（忘れると消滅！更新後は renewed.sh で記録）"
+  window_h="${RENEW_WINDOW_HOURS:-12}"
+  open_after=$(( REAUTH_INTERVAL_HOURS - window_h ))   # 更新可能になるまでの経過時間
+  REAUTH_LINE="🔐 VPS更新: 有効${REAUTH_INTERVAL_HOURS}h・期限${window_h}h前から更新可（更新後は renewed.sh で記録）"
   if [ -f "$RENEWAL_STAMP" ]; then
     last="$(cat "$RENEWAL_STAMP" 2>/dev/null || echo 0)"
     if [ "$last" -gt 0 ]; then
       elapsed_h=$(( ( $(date +%s) - last ) / 3600 ))
       left_h=$(( REAUTH_INTERVAL_HOURS - elapsed_h ))
+      open_in=$(( open_after - elapsed_h ))
       if [ "$left_h" -le 0 ]; then
         REAUTH_LINE="🔴 VPS更新期限を**超過している可能性**！今すぐ確認 → ${RENEW_PANEL_URL}"
         URGENT="@everyone "
       elif [ "$left_h" -le 3 ]; then
         REAUTH_LINE="🔴 VPS更新まで残り約 **${left_h}時間**！ → ${RENEW_PANEL_URL}"
         URGENT="@everyone "
+      elif [ "$elapsed_h" -ge "$open_after" ]; then
+        REAUTH_LINE="🟠 VPS更新できます（残り約${left_h}h）→ ${RENEW_PANEL_URL}"
       else
-        REAUTH_LINE="🟢 VPS更新: 前回から${elapsed_h}h・残り約${left_h}h（${REAUTH_INTERVAL_HOURS}hごと）"
+        REAUTH_LINE="🟢 VPS: あと約${open_in}hで更新可能（期限まで${left_h}h・まだ更新不可）"
       fi
     fi
   fi
