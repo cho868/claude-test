@@ -88,6 +88,7 @@ sudo bash deploy/deploy-app.sh main # 取得 → composer → migrate → 最適
 再構築・トラブルシュート・通知・セキュリティまで含めた完全手順は以下にまとめてあります（そのまま Qiita / Zenn 記事や、ポータル内「📚資料」に転用可）。
 
 - **[deploy/DEPLOY.md](deploy/DEPLOY.md)** … 構築・再構築・更新・トラブルシュート
+- **[deploy/ORACLE.md](deploy/ORACLE.md)** … Oracle Cloud Always Free への移行（恒久無料・更新作業ゼロ。XServerの更新地獄からの脱出先）
 - **[deploy/NOTIFY.md](deploy/NOTIFY.md)** … 通知・死活監視（no-ip / Let's Encrypt / XServer の期限を毎日Discord通知）
 - **[deploy/SECURITY.md](deploy/SECURITY.md)** … セキュリティ懸念・対策・監視。`deploy/harden-server.sh` で fail2ban / 自動更新 / セキュリティヘッダを導入
 - **[deploy/TROUBLESHOOTING.md](deploy/TROUBLESHOOTING.md)** … サイトが落ちた時の自己診断・修正ナレッジ（症状→診断→原因→直し方をパターン別に記録）

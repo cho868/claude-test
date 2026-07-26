@@ -86,11 +86,15 @@ NGINX
   rm -f /etc/nginx/sites-enabled/default
 fi
 
-echo "==> ファイアウォール(ufw): SSH を先に許可してから有効化"
-ufw allow 22/tcp || true
-ufw allow 80/tcp || true
-ufw allow 443/tcp || true
-yes | ufw enable || true
+if [ "${SKIP_UFW:-0}" = "1" ]; then
+  echo "==> ufw はスキップ（SKIP_UFW=1）。Oracle等で iptables を使う場合は deploy/oracle-firewall.sh を実行"
+else
+  echo "==> ファイアウォール(ufw): SSH を先に許可してから有効化"
+  ufw allow 22/tcp || true
+  ufw allow 80/tcp || true
+  ufw allow 443/tcp || true
+  yes | ufw enable || true
+fi
 
 systemctl enable --now "php${PHP_VER}-fpm" nginx
 nginx -t && systemctl reload nginx
@@ -98,4 +102,5 @@ nginx -t && systemctl reload nginx
 echo ""
 echo "==> 完了。PHP ${PHP_VER} / nginx 準備OK。"
 echo "    次は: sudo bash deploy/deploy-app.sh main"
-echo "    ※ XServer VPS の『パケットフィルター(Web管理画面)』でも 22/80/443 を開けてください。"
+echo "    ※ クラウド側のファイアウォールでも 22/80/443 を開けてください:"
+echo "       XServer → パケットフィルター(Web管理画面) / Oracle → セキュリティリスト + deploy/oracle-firewall.sh"
