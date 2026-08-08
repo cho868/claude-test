@@ -17,8 +17,22 @@ Raspberry Pi 4 を自宅サーバーにして身内ポータルを公開する�
 
 - Raspberry Pi 4 Model B スターターキット（本体・ケース・ヒートシンク・ファン・電源・microSD）
 - microSDを焼くためのPC（カードリーダー）
-- **できれば USB接続のSSD**（microSDは書き込み寿命があり突然死しやすい。SSD起動が安定・推奨）
-  - 最初はmicroSDで始めてOK。ただし **Discordバックアップ（後述）は必須**
+- ストレージ方針は下の「ストレージの選び方」を参照（**この規模ならまずSDで十分**）
+
+### ストレージの選び方（SDの寿命 vs SSDの電力）
+microSDは書き込み寿命があり突然死しうるが、**身内数人のポータルは書き込みが非常に少ない**ので、
+対策すれば付属SDのままで十分実用になる。焦ってSSDにしなくてよい。
+
+| 方法 | 費用 | 電力問題 | 備考 |
+|---|---|---|---|
+| **① 付属SD + 書き込み削減 + 毎日バックアップ** | 0円 | なし | ⭐まずこれ。log2ram＋Discordバックアップで安全 |
+| ② 高耐久microSD(High Endurance) | ¥2,000前後 | なし | 保険が欲しい人の妥協点。電力問題なし |
+| ③ USB-SSD | ¥3,000〜 | **あり** | ⚠️Pi4はUSB給電が弱く、2.5"SATA SSDは起動スパイクで電圧不足になりがち |
+
+> ⚠️ **③ USB-SSDにするなら電力対策必須**:
+> - **セルフパワー(ACアダプタ付き)USBハブ**経由でSSDを繋ぐ（SSDの電気をハブから取る＝Piに負担をかけない）。これが確実。
+> - もしくは **公式5V/3A電源 + 低消費電力の2.5"SSD + UASP対応アダプタ**（HDDは避ける）。
+> - 電圧不足の確認: `vcgencmd get_throttled` が `0x0` なら正常、それ以外なら電圧/温度の問題履歴あり。
 
 ---
 
@@ -132,7 +146,27 @@ sudo /var/www/portal/deploy/backup-to-discord.sh   # 手動テスト
 - **自動起動**: nginx/php-fpm/tailscale は systemd で自動起動。停電後も電源が戻れば自動復帰。
   Funnelは `--bg` で常駐設定として保存される。
 - **停電/再起動対策**: UPS(無停電電源)まではなくても、`backup-to-discord.sh` があれば最悪データは戻せる。
+### 🍓 SDカードを長持ちさせる（SD運用なら推奨・費用0円）
+
+書き込み回数を減らせばSDの寿命は大幅に伸びる。ログをRAMに逃がすのが効果的:
+```bash
+# log2ram: /var/log をRAM上に置き、1日1回だけSDに書き戻す
+sudo apt-get install -y git
+git clone https://github.com/azlux/log2ram.git /tmp/log2ram
+cd /tmp/log2ram && sudo ./install.sh
+sudo reboot
+
+# スワップを切る（SDへの書き込みを減らす。RAMに余裕があるPi4なら可）
+sudo systemctl disable --now dphys-swapfile 2>/dev/null || sudo swapoff -a
+
+# 電圧・温度に問題が出ていないか確認
+vcgencmd get_throttled     # 0x0 なら正常
+vcgencmd measure_temp
+```
+加えて **`backup-to-discord.sh` の毎日実行が最大の保険**（SDが飛んでもDBは戻せる）。
+
 - **SD→SSD移行**: 安定運用するなら USB-SSD にOSを焼き直して起動元を変更（`rpi-clone` 等でも移せる）。
+  その際は上記の電力対策（セルフパワーUSBハブ推奨）を忘れずに。
 - **熱**: スターターキットのファン+ヒートシンクを付けていれば常用で問題なし。`vcgencmd measure_temp` で温度確認可。
 - **セキュリティ**: 公開はTailscale経由のみ・SSHは家庭内LANのみなので露出は小さい。`deploy/harden-server.sh` も任意で。
 
