@@ -58,6 +58,7 @@
 
 - 構築・再構築・IP変更: [DEPLOY.md](DEPLOY.md)
 - Oracle Cloud 移行(恒久無料・更新不要): [ORACLE.md](ORACLE.md)
+- ラズパイ自宅サーバー(Tailscale Funnel・カード不要): [RASPBERRYPI.md](RASPBERRYPI.md)
 - 通知・監視・Gmail見張り番の設定: [NOTIFY.md](NOTIFY.md)
 - セキュリティ: [SECURITY.md](SECURITY.md)
 - 障害対応ナレッジ: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
         ]);
+        // Tailscale Funnel / Cloudflare Tunnel / nginx など、前段でHTTPSを終端する
+        // リバースプロキシの X-Forwarded-* を信頼する（https判定・リダイレクトの正常化）。
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

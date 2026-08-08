@@ -34,6 +34,7 @@ class DocumentSeeder extends Seeder
             'deploy/SERVICES.md' => ['利用サービス・ツール全体マップ（リンク・設定場所・期限）', '運用'],
             'deploy/DEPLOY.md'   => ['身内ポータル 構築・再構築 手順書', 'サーバー'],
             'deploy/ORACLE.md'   => ['Oracle Cloud Always Free 移行ガイド（恒久無料）', 'サーバー'],
+            'deploy/RASPBERRYPI.md' => ['ラズパイ自宅サーバー構築ガイド（Tailscale Funnel・完全無料）', 'サーバー'],
             'deploy/NOTIFY.md'   => ['通知と死活監視（no-ip / SSL / XServer）の設定', '運用'],
             'deploy/SECURITY.md' => ['セキュリティ：懸念点・対策・監視', 'セキュリティ'],
             'deploy/TROUBLESHOOTING.md' => ['トラブル対応ナレッジ（サイトが落ちた時の直し方）', '運用'],
