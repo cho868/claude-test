@@ -168,6 +168,29 @@ sudo /var/www/portal/deploy/backup-to-discord.sh   # 手動テスト
 
 ---
 
+## 8. アクセスログと異常検知
+
+「身内しか使わないのに大量アクセスが来たら異常」というシンプルで強い検知を入れる。
+
+```bash
+# 1) nginxのログに実IPを記録（Funnel経由は素のままだと全部127.0.0.1になるため）
+sudo bash /var/www/portal/deploy/setup-access-log.sh
+
+# 2) cron 2行を追加
+sudo crontab -e
+*/10 * * * * /var/www/portal/deploy/access-monitor.sh >> /var/log/portal-access.log 2>&1
+5 9 * * *    /var/www/portal/deploy/access-monitor.sh --daily >> /var/log/portal-access.log 2>&1
+```
+
+- **10分ごとの検知**: リクエスト数/ユニークIP数/404数/攻撃風パス(wp-login・.env等)が
+  しきい値（`/etc/portal-notify.conf` の `ACCESS_*` で調整）を超えたら Discord に @everyone。
+  IP/パスのTOP5つき。初回実行はベースライン記録のみで誤発報しない。/health は除外。
+- **毎朝9:05のダイジェスト**: 昨日の合計・訪問IP数・404・よく見られたページ
+- 生ログの場所: `/var/log/nginx/access.log`（実IPは行末の `xff="..."`）
+  ```bash
+  sudo tail -f /var/log/nginx/access.log      # リアルタイムで眺める
+  ```
+
 ## 運用メモ
 
 - **自動起動**: nginx/php-fpm/tailscale は systemd で自動起動。停電後も電源が戻れば自動復帰。

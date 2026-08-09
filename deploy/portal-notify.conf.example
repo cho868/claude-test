@@ -48,6 +48,13 @@ LINE_MIN_INTERVAL_MIN="30"
 # メモリ使用率アラートのしきい値（%。これ以上でDiscord/LINEに警告）
 MEM_ALERT_THRESHOLD="85"
 
+# ===== アクセス異常検知（access-monitor.sh 用）=====
+# 「身内しか使わないのに大量アクセス＝異常」の検知しきい値（10分あたり）
+ACCESS_REQS_ALERT="300"    # リクエスト数がこれ超で異常
+ACCESS_IPS_ALERT="10"      # ユニークIP数がこれ超で異常（身内は数人のはず）
+ACCESS_404_ALERT="40"      # 404がこれ超で異常（探索行為の兆候）
+ACCESS_SCAN_ALERT="10"     # wp-login/.env等の攻撃風パスがこれ超で異常
+
 # ===== オフサイト・バックアップ（backup-to-discord.sh 用）=====
 # DBを毎日Discordへ退避してVPS全損に備える。守るべきはDBファイル。
 # バックアップ専用チャンネルのWebhook（空なら上の DISCORD_WEBHOOK を流用）
