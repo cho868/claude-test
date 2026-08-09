@@ -60,6 +60,16 @@ Raspberry Pi 4 を自宅サーバーにして身内ポータルを公開する�
    - 「サービス」タブ → ✅ **SSHを有効化** →「パスワード認証を使う」
 4. 保存 → 「はい」で書き込み開始 → 完了したらSDを取り出してPiに挿す
 
+### 組み立ての参考リンク（初めての人向け）
+
+- 動画: [Raspberry Pi 4 キット 開封・組み立て・OSインストール（YouTube）](https://www.youtube.com/watch?v=Iwmcp80PLQE)
+- 写真解説: [ヒートシンク＆ファン付きラズパイ4の組み立て（ファンのピン位置写真あり）](https://note.com/bft_nagoya/n/nb04b9d1ce970) /
+  [TRASKIT系キットのケース組み立て](https://wakky.tech/raspberry-pi-1-traskit-starter-kit-install/) /
+  [DevelopersIOの組み立て記録](https://dev.classmethod.jp/articles/raspberry-pi-4-assembly/)
+- 💡 キットの箱のブランド名(LABISTS/Vemico/TRASKIT等)でYouTube検索すると**純正の組み立て動画**が見つかることが多い
+- ⚠️ 失敗しうるのは実質 **ファンの配線だけ**（赤=5V・黒=GND。説明書の図と写真記事で確認してから電源ON）。
+  ヒートシンクは大きいチップに貼るだけ・多少ズレても問題なし。作業前に金属に触れて静電気を逃がす。
+
 ## 2. 組み立て & 初回起動
 
 1. **ヒートシンク**をCPU等のチップに貼る（発熱対策。必ず付ける）
