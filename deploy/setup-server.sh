@@ -102,5 +102,6 @@ nginx -t && systemctl reload nginx
 echo ""
 echo "==> 完了。PHP ${PHP_VER} / nginx 準備OK。"
 echo "    次は: sudo bash deploy/deploy-app.sh main"
-echo "    ※ クラウド側のファイアウォールでも 22/80/443 を開けてください:"
-echo "       XServer → パケットフィルター(Web管理画面) / Oracle → セキュリティリスト + deploy/oracle-firewall.sh"
+echo "    ※ 外側ファイアウォールの扱い（環境に合わせて）:"
+echo "       ・自宅サーバー(ラズパイ等): ルーターのポート開放は不要。Tailscale等のトンネルで公開する"
+echo "       ・クラウドVPS: 管理画面側でも 22/80/443 の許可が必要（詳細は deploy/ 配下の各ガイド）"
