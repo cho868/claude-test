@@ -142,6 +142,8 @@ NOW_EPOCH="$(date -d "$TODAY" +%s)"
 
 # ===== 体験終了までの残り日数 =====
 COUNTDOWN_LINE="📅 体験終了日: 未設定（分かったら /etc/portal-notify.conf の TRIAL_END に記入）"
+# 体験期限のない環境(ラズパイ等)では TRIAL_END="none" で行ごと非表示
+[ "$TRIAL_END" = "none" ] && { COUNTDOWN_LINE=""; TRIAL_END=""; }
 URGENT=""
 if [ -n "$TRIAL_END" ]; then
   end_epoch=$(date -d "$TRIAL_END" +%s)
@@ -192,6 +194,8 @@ if [ -n "$REAUTH_INTERVAL_HOURS" ]; then
   fi
 else
   REAUTH_LINE="🔐 認証リマインド: ${REAUTH_INTERVAL_DAYS}日ごとに XServer の管理画面で認証を（忘れると停止）"
+  # 更新作業の無い環境(ラズパイ等)は REAUTH_INTERVAL_DAYS="none" で非表示
+  [ "$REAUTH_INTERVAL_DAYS" = "none" ] && REAUTH_LINE=""
 fi
 
 # ===== Let's Encrypt 証明書の残り日数 =====
@@ -212,7 +216,9 @@ fi
 # 確認方法: メールのリンク or マイページの Confirm ボタン。確認したら
 # /etc/portal-notify.conf の NOIP_LAST_CONFIRMED をその日付に更新すること。
 NOIP_LINE="🌐 no-ip: 無料ホスト名は30日ごとに確認必須（NOIP_LAST_CONFIRMED 未設定。確認した日を記入して）"
-if [ -n "$NOIP_LAST_CONFIRMED" ]; then
+# no-ip を使わない構成(ラズパイ+Tailscale等)では "none" を設定 → 行ごと非表示
+[ "$NOIP_LAST_CONFIRMED" = "none" ] && NOIP_LINE=""
+if [ -n "$NOIP_LAST_CONFIRMED" ] && [ "$NOIP_LAST_CONFIRMED" != "none" ]; then
   noip_epoch=$(date -d "$NOIP_LAST_CONFIRMED" +%s 2>/dev/null || echo 0)
   if [ "$noip_epoch" -gt 0 ]; then
     noip_days=$(( (NOW_EPOCH - noip_epoch) / 86400 ))
@@ -253,6 +259,8 @@ MSG="${MSG}
 🖥️ ${UPTIME} / 💽 ${DISK}"
 [ -n "$SITE_URL" ] && MSG="${MSG}
 🔗 ${SITE_URL}"
+# "none"設定などで空になった行を除去
+MSG="$(printf '%s\n' "$MSG" | sed '/^$/d')"
 
 # --urgent-only モード: 緊急が無ければ何も送らずに終了
 if [ "$URGENT_ONLY" -eq 1 ]; then

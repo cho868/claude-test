@@ -2,15 +2,22 @@
 #   sudo cp deploy/portal-notify.conf.example /etc/portal-notify.conf
 #   sudo vi /etc/portal-notify.conf
 # notify.sh がこのファイルを読み込みます。
+#
+# 🍓 ラズパイ+Tailscale構成の場合の推奨値:
+#   DOMAIN=""                → certbot不使用(HTTPSはTailscaleが自動更新)なので空
+#   SITE_URL="https://xxx.ts.net"  → Funnelの公開URL
+#   TRIAL_END="none"         → 体験期限が無いので非表示
+#   REAUTH_INTERVAL_HOURS="" / REAUTH_INTERVAL_DAYS="none" → 更新作業が無いので非表示
+#   NOIP_LAST_CONFIRMED="none" → no-ip不使用なら非表示
 
 # Discord の Webhook URL（チャンネル設定 → 連携サービス → ウェブフック で作成）
 DISCORD_WEBHOOK="https://discord.com/api/webhooks/xxxxxxxx/xxxxxxxx"
 
-# 公開ドメイン（SSL証明書の残り日数チェックに使用）
+# 公開ドメイン（certbotのSSL証明書の残り日数チェックに使用。certbot不使用なら空）
 DOMAIN="madgear.sytes.net"
 SITE_URL="https://madgear.sytes.net"
 
-# 体験終了日（分かれば YYYY-MM-DD。空でも可。分かり次第ここに記入）
+# 体験終了日（分かれば YYYY-MM-DD。期限のない環境(ラズパイ等)は "none" で非表示）
 TRIAL_END=""
 
 # 認証間隔（日）: 旧仕様用。下の HOURS を設定するとそちらが優先される
@@ -27,7 +34,8 @@ RENEW_WINDOW_HOURS="12"
 RENEW_PANEL_URL="https://secure.xserver.ne.jp/xapanel/login/xvps/"
 
 # no-ip を最後に確認した日（YYYY-MM-DD）。23日目に🟠・27日目に🔴@everyone。
-# 確認するたびに手で書くか、 sudo deploy/noip-confirmed.sh を実行すると今日付で自動記録
+# 確認するたびに手で書くか、 sudo deploy/noip-confirmed.sh を実行すると今日付で自動記録。
+# no-ip を使わない構成では "none" で非表示
 NOIP_LAST_CONFIRMED=""
 
 # healthchecks.io の ping URL（無料登録 → Check 作成で取得。死活監視。任意）
@@ -54,6 +62,13 @@ ACCESS_REQS_ALERT="300"    # リクエスト数がこれ超で異常
 ACCESS_IPS_ALERT="10"      # ユニークIP数がこれ超で異常（身内は数人のはず）
 ACCESS_404_ALERT="40"      # 404がこれ超で異常（探索行為の兆候）
 ACCESS_SCAN_ALERT="10"     # wp-login/.env等の攻撃風パスがこれ超で異常
+
+# ===== SDカード週次レポート（sd-health.sh 用・ラズパイ）=====
+# 寿命目安の前提となる総書込許容量(TB)。メーカー非公開のため超概算。
+# 32GB級の一般カード=10 / 高耐久(High Endurance)なら 20〜 が目安
+SD_TBW_EST_TB="10"
+# 監視するデバイス名。SD起動=mmcblk0 / USB-SSD起動=sda
+SD_DEVICE="mmcblk0"
 
 # ===== オフサイト・バックアップ（backup-to-discord.sh 用）=====
 # DBを毎日Discordへ退避してVPS全損に備える。守るべきはDBファイル。

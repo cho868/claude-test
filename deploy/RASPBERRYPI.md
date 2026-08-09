@@ -168,6 +168,20 @@ sudo /var/www/portal/deploy/backup-to-discord.sh   # 手動テスト
 
 ---
 
+## 7.5 portal-notify.conf のラズパイ推奨値
+
+XServer時代の設定はそのままだと不要な行が毎朝出るので、以下に:
+```ini
+DOMAIN=""                     # certbot不使用(HTTPSはTailscaleが自動更新)
+SITE_URL="https://xxx.ts.net" # Funnelの公開URL
+TRIAL_END="none"              # 体験期限なし→非表示
+REAUTH_INTERVAL_HOURS=""      # 更新作業なし
+REAUTH_INTERVAL_DAYS="none"   # 〃 →非表示
+NOIP_LAST_CONFIRMED="none"    # no-ip不使用→非表示
+```
+※ no-ip をもう使わないなら、Gmail監視(GAS)がno-ipの確認メールに反応し続けるので、
+　 届いたメールに「VPS対応済み」ラベルを付けるか、no-ip側でホスト名を削除しておくと静かになる。
+
 ## 8. アクセスログと異常検知
 
 「身内しか使わないのに大量アクセスが来たら異常」というシンプルで強い検知を入れる。
@@ -190,6 +204,21 @@ sudo crontab -e
   ```bash
   sudo tail -f /var/log/nginx/access.log      # リアルタイムで眺める
   ```
+
+## 9. SDカードの週次健康レポート
+
+SDはSSDと違い正確な摩耗値(SMART)を読めないため、**書き込み量を実測して寿命を概算**する。
+
+```bash
+sudo crontab -e
+30 9 * * 0  /var/www/portal/deploy/sd-health.sh >> /var/log/portal-notify.log 2>&1   # 毎週日曜9:30
+```
+
+毎週Discordに届く内容:
+- 今週の書き込み量（MB）と1日あたりペース → **log2ramが効いていれば数十MB/日程度**
+- 寿命の超ざっくり目安「このペースならあと約◯年」（`SD_TBW_EST_TB`=総書込許容量の想定で計算。既定10TB）
+- SD関連のI/Oエラー検出数（増えたら交換のサイン）・電圧/温度の問題履歴・ディスク使用率
+- 初回実行は基準記録のみ。再起動を跨いだ週は目安表示になる
 
 ## 運用メモ
 
