@@ -205,6 +205,31 @@ sudo crontab -e
   sudo tail -f /var/log/nginx/access.log      # リアルタイムで眺める
   ```
 
+### ⚠️ 公開したら必ず来る「ボットのスキャン」の読み方
+
+公開URLを持つと、**数時間以内に世界中のボットが `/.env` `/wp-login.php` `/.vscode/sftp.json` などを
+自動で舐めに来る**。これは狙われているのではなく**インターネットの背景ノイズ**。慌てないこと。
+
+**危険かどうかの判定はひとつだけ: 攻撃系パスが 2xx を返していないか。**
+```bash
+# これが空っぽなら実害ゼロ（弾けている）
+sudo grep -E '\.env|\.vscode|wp-login|phpmyadmin|\.git' /var/log/nginx/access.log | awk '$9 ~ /^2/'
+```
+- nginx設定に `location ~ /\.(?!well-known).* { deny all; }` があるので `.env` 等は**中身を返さず遮断**
+- ログイン/登録は `throttle:6,1`（1分6回）で総当たり対策済み
+- そのため `access-monitor.sh` の通知は2段階:
+  - **🔍 通常のスキャン・404の山** → @everyone なし（「弾けているので実害なし」と明記して送る）
+  - **🚨 スキャンが2xxを返した / ログイン試行が多すぎる** → @everyone で緊急通知
+
+**公開後に必ずやること: 招待コードの設定**（公開URLがボットに見つかるので、無いと誰でも登録できる）
+```bash
+sudo vi /var/www/portal/.env
+#   REGISTRATION_INVITE_CODE=好きな合言葉
+cd /var/www/portal && sudo -u www-data HOME=/tmp php artisan config:cache
+```
+
+さらに固めるなら `sudo bash deploy/harden-server.sh`（fail2ban＋自動セキュリティ更新）。
+
 ## 9. SDカードの週次健康レポート
 
 SDはSSDと違い正確な摩耗値(SMART)を読めないため、**書き込み量を実測して寿命を概算**する。

@@ -61,7 +61,9 @@ MEM_ALERT_THRESHOLD="85"
 ACCESS_REQS_ALERT="300"    # リクエスト数がこれ超で異常
 ACCESS_IPS_ALERT="10"      # ユニークIP数がこれ超で異常（身内は数人のはず）
 ACCESS_404_ALERT="40"      # 404がこれ超で異常（探索行為の兆候）
-ACCESS_SCAN_ALERT="10"     # wp-login/.env等の攻撃風パスがこれ超で異常
+ACCESS_SCAN_ALERT="10"     # wp-login/.env等の攻撃風パスがこれ超で異常(弾けていれば通知は@everyoneなし)
+ACCESS_LOGIN_ALERT="30"    # ログイン試行がこれ超で@everyone(総当たりの疑い)
+# ※ 攻撃系パスが2xxを返した場合は件数に関係なく即@everyone(実害の可能性)
 
 # ===== SDカード週次レポート（sd-health.sh 用・ラズパイ）=====
 # 寿命目安の前提となる総書込許容量(TB)。メーカー非公開のため超概算。

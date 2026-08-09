@@ -94,23 +94,40 @@ reqs=$(printf '%s\n' "$NEW" | grep -c .)
 uniq_ips=$(printf '%s\n' "$NEW" | extract_ip | sort -u | grep -c .)
 n404=$(printf '%s\n' "$NEW" | awk '$9 == 404' | grep -c . || true)
 scans=$(printf '%s\n' "$NEW" | grep -cE "$SCAN_PATTERN" || true)
+# 🔥 本当にヤバいのは「スキャンが成功(2xx)した」場合だけ。403/404で弾いていれば無害。
+scan_hits=$(printf '%s\n' "$NEW" | grep -E "$SCAN_PATTERN" | awk '$9 ~ /^2/' | grep -c . || true)
+logins=$(printf '%s\n' "$NEW" | grep -c '"POST /login' || true)
 
-ALERTS=""
-[ "$reqs" -gt "$ACCESS_REQS_ALERT" ] && ALERTS="${ALERTS}・リクエスト数 ${reqs}件（しきい値${ACCESS_REQS_ALERT}）\n"
-[ "$uniq_ips" -gt "$ACCESS_IPS_ALERT" ] && ALERTS="${ALERTS}・ユニークIP ${uniq_ips}（しきい値${ACCESS_IPS_ALERT}）\n"
-[ "$n404" -gt "$ACCESS_404_ALERT" ] && ALERTS="${ALERTS}・404が ${n404}件（探索行為の疑い）\n"
-[ "$scans" -gt "$ACCESS_SCAN_ALERT" ] && ALERTS="${ALERTS}・攻撃スキャン風パス ${scans}件\n"
+# ===== 重大度を2段階に分ける =====
+# CRITICAL(@everyone): スキャン成功 or ログイン試行が異常に多い（総当たりの疑い）
+# NOTICE(鳴らすが@everyoneなし): 公開サーバーに日常的に来るボットのスキャン・404の山
+CRIT=""
+NOTE=""
+[ "$scan_hits" -gt 0 ] && CRIT="${CRIT}・⚠️ **攻撃系パスが2xxを返した (${scan_hits}件)** ← 要確認！\n"
+[ "$logins" -gt "${ACCESS_LOGIN_ALERT:-30}" ] && CRIT="${CRIT}・🔐 ログイン試行 ${logins}件（総当たりの疑い）\n"
+[ "$reqs" -gt "$ACCESS_REQS_ALERT" ] && NOTE="${NOTE}・リクエスト数 ${reqs}件（しきい値${ACCESS_REQS_ALERT}）\n"
+[ "$uniq_ips" -gt "$ACCESS_IPS_ALERT" ] && NOTE="${NOTE}・ユニークIP ${uniq_ips}（しきい値${ACCESS_IPS_ALERT}）\n"
+[ "$n404" -gt "$ACCESS_404_ALERT" ] && NOTE="${NOTE}・404が ${n404}件（探索行為。弾けているので実害なし）\n"
+[ "$scans" -gt "$ACCESS_SCAN_ALERT" ] && NOTE="${NOTE}・攻撃スキャン風パス ${scans}件（うち成功 ${scan_hits}件）\n"
 
-if [ -z "$ALERTS" ]; then
-  echo "[access] 正常 (req=$reqs ip=$uniq_ips 404=$n404 scan=$scans)"
+if [ -z "$CRIT" ] && [ -z "$NOTE" ]; then
+  echo "[access] 正常 (req=$reqs ip=$uniq_ips 404=$n404 scan=$scans hit=$scan_hits)"
   exit 0
 fi
 
 top_ips=$(printf '%s\n' "$NEW" | extract_ip | sort | uniq -c | sort -rn | head -5 | awk '{printf "  %s: %s回\n", $2, $1}')
 top_paths=$(printf '%s\n' "$NEW" | awk -F'"' '{print $2}' | awk '{print $2}' | sort | uniq -c | sort -rn | head -5 | awk '{printf "  %s (%s回)\n", $2, $1}')
 
-MSG="@everyone 🚨 **[$HOST_LABEL] アクセス異常を検知**（直近10分）
-$(printf "$ALERTS")
+if [ -n "$CRIT" ]; then
+  HEAD="@everyone 🚨 **[$HOST_LABEL] 危険なアクセスを検知**（直近10分）
+$(printf "$CRIT")$(printf "$NOTE")"
+else
+  HEAD="🔍 **[$HOST_LABEL] アクセス増加を検知**（直近10分・**弾けているので実害なし**）
+$(printf "$NOTE")
+※ 公開サーバーには常時ボットのスキャンが来ます。2xxを返していなければ通常のノイズです。"
+fi
+
+MSG="${HEAD}
 アクセス元IP TOP:
 ${top_ips}
 アクセス先 TOP:
@@ -118,4 +135,4 @@ ${top_paths}
 🔍 詳細: sudo tail -100 /var/log/nginx/access.log"
 
 send_discord "$MSG"
-echo "[access] 異常を通知 (req=$reqs ip=$uniq_ips 404=$n404 scan=$scans)"
+echo "[access] 通知 (crit=${CRIT:+yes} req=$reqs ip=$uniq_ips 404=$n404 scan=$scans hit=$scan_hits login=$logins)"
