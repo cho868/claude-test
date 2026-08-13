@@ -245,6 +245,74 @@ sudo crontab -e
 - SD関連のI/Oエラー検出数（増えたら交換のサイン）・電圧/温度の問題履歴・ディスク使用率
 - 初回実行は基準記録のみ。再起動を跨いだ週は目安表示になる
 
+## 10. 同じサーバーに別プロジェクトを追加する（例: /daily に静的PWA）
+
+ポータルとは別のアプリ（PWA・自作API等）を同じPiに相乗りさせる手順。
+
+### ① ファイルはLaravelのリポジトリ**外**に置く
+`/var/www/portal/` はデプロイのたびに `git reset --hard` される領域なので、
+別プロジェクトは混ぜず **`/var/www/daily/`** のように独立させる（事故防止）。
+```bash
+sudo mkdir -p /var/www/daily
+sudo chown -R www-data:www-data /var/www/daily
+# ここに index.html / manifest.json / sw.js などを置く
+```
+
+### ② nginx に location を追加
+編集するのは **`/etc/nginx/sites-available/portal`**（`setup-server.sh` は
+既存設定があれば上書きしないので、手で足した内容は消えない）。
+```bash
+sudo vi /etc/nginx/sites-available/portal
+```
+`location / { ... }` と同じ階層に追記:
+```nginx
+    # 別プロジェクト: /daily/ に静的PWA（Laravel本体とは別ディレクトリ）
+    location ^~ /daily/ {
+        alias /var/www/daily/;
+        index index.html;
+        try_files $uri $uri/ /daily/index.html;   # SPAなら index.html へフォールバック
+    }
+```
+- **`alias`** を使うと `root`（=portal/public）とは別の場所を指せる
+- **`^~`** を付けると、下にある `location ~ \.php$`（正規表現）より優先される。
+  静的PWAをPHPに渡してしまう事故を防げるので付けておくのが安全
+- 反映（**必ず `-t` を通してから reload**。過去にこれで落とした事故あり）:
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### ③ PWAの注意
+- `manifest.json` の `start_url` と `scope` を **`/daily/`** にする
+- Service Worker の登録も `navigator.serviceWorker.register('/daily/sw.js', { scope: '/daily/' })`
+- 公開URLは Tailscale Funnel と同じ `https://xxx.ts.net/daily/`（Funnelは80番をそのまま出すので追加設定は不要）
+
+## 11. スマホ（Termius）からSSH接続する
+
+MAP-E回線でポート開放していないため、**Tailscale経由**で繋ぐ。これで外出先からでも入れる。
+
+1. **スマホに Tailscale アプリ**を入れ、**Piと同じアカウント**でログイン（これでスマホがtailnetに参加）
+2. **PiのtailnetIPを確認**:
+   ```bash
+   tailscale ip -4        # 100.x.x.x が出る
+   tailscale status       # MagicDNS名(例: chopi)も確認できる
+   ```
+3. **Termius でホストを登録**:
+   - Address: `100.x.x.x`（またはMagicDNS名 `chopi`）
+   - Port: `22` / Username: `pi`
+   - Password認証、または鍵認証（下記）
+4. 接続。**家でも外でも同じIPで繋がる**のがtailnetの利点
+   （`192.168.0.5` は自宅LAN内でしか使えないので、Termiusには**tailnetIPを登録**するのがおすすめ）
+
+### 鍵認証にする場合（Termius）
+- Termius の Keychain で鍵を生成 → **公開鍵をコピー**
+- Piで登録:
+  ```bash
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  echo "ここに公開鍵を貼り付け" >> ~/.ssh/authorized_keys
+  chmod 600 ~/.ssh/authorized_keys
+  ```
+- Termius のホスト設定で、Password ではなくその Key を選ぶ
+
 ## 運用メモ
 
 - **自動起動**: nginx/php-fpm/tailscale は systemd で自動起動。停電後も電源が戻れば自動復帰。
