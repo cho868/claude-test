@@ -29,6 +29,7 @@
                                 'social.index'      => ['📋', 'ソシャゲ管理'],
                                 'pokemon.index'     => ['🔴', 'ポケモン計算'],
                                 'arcade.index'      => ['👾', 'ミニゲーム'],
+                                'monsters.index'    => ['🐣', 'モンスター'],
                             ]],
                             'からだ' => ['💪', [
                                 'sleep.index'   => ['😴', '睡眠'],

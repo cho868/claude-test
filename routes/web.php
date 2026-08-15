@@ -13,6 +13,7 @@ use App\Http\Controllers\ImageToolController;
 use App\Http\Controllers\LinkController;
 use App\Http\Controllers\WhiteboardController;
 use App\Http\Controllers\MatchRecordController;
+use App\Http\Controllers\MonsterController;
 use App\Http\Controllers\PokemonController;
 use App\Http\Controllers\SocialGameController;
 use App\Http\Controllers\SteamController;
@@ -95,6 +96,13 @@ Route::middleware('auth')->group(function () {
     Route::get('steam', [SteamController::class, 'index'])->name('steam.index');
     Route::get('steam/mine', [SteamController::class, 'mine'])->name('steam.mine');
     Route::get('steam/achievements', [SteamController::class, 'achievements'])->name('steam.achievements');
+
+    // モンスター(個人育成 + みんなの共有ボス + 対戦)
+    Route::get('monsters', [MonsterController::class, 'index'])->name('monsters.index');
+    Route::post('monsters', [MonsterController::class, 'store'])->name('monsters.store');
+    Route::put('monsters', [MonsterController::class, 'update'])->name('monsters.update');
+    Route::post('monsters/battle/{opponent}', [MonsterController::class, 'battle'])
+        ->middleware('throttle:20,1')->name('monsters.battle');
 
     // 画像変換(ブラウザ内で完結・サーバーに送信しない)
     Route::get('tools/image', [ImageToolController::class, 'index'])->name('tools.image');

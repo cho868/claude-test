@@ -527,6 +527,67 @@ class PortalTest extends TestCase
             ->assertSee('完全ローカル処理');
     }
 
+    public function test_monster_creation_stats_and_battle(): void
+    {
+        $me = User::factory()->create(['points' => 500, 'total_logins' => 30, 'login_streak' => 5]);
+        $rival = User::factory()->create(['points' => 20, 'total_logins' => 2, 'login_streak' => 1]);
+        $svc = app(\App\Services\MonsterService::class);
+
+        // 作成 → +10pt
+        $this->actingAs($me)->post(route('monsters.store'), ['species' => 'dragon', 'name' => 'リュウ'])
+            ->assertRedirect(route('monsters.index'));
+        $this->assertDatabaseHas('monsters', ['user_id' => $me->id, 'species' => 'dragon']);
+        $this->assertSame(510, (int) $me->refresh()->points);
+
+        // 2体目は作れない
+        $this->actingAs($me)->post(route('monsters.store'), ['species' => 'slime', 'name' => '2匹目'])
+            ->assertStatus(409);
+
+        // 能力値は保存せず算出される。ポイントが多い方がレベルが高い
+        $this->actingAs($rival)->post(route('monsters.store'), ['species' => 'slime', 'name' => 'プヨ']);
+        $strong = $svc->stats($me->refresh());
+        $weak = $svc->stats($rival->refresh());
+        $this->assertGreaterThan($weak['level'], $strong['level']);
+        $this->assertSame(2, $strong['stage'], 'Lv5以上で第2進化');
+
+        // バトル: 1行だけ保存され、戦闘ログはDBに残らない
+        $res = $this->actingAs($me)->postJson(route('monsters.battle', $rival));
+        $res->assertOk()->assertJson(['ok' => true]);
+        $this->assertNotEmpty($res->json('log'), '戦闘ログはレスポンスで返る');
+        $this->assertDatabaseCount('monster_battles', 1);
+        $battle = \App\Models\MonsterBattle::first();
+        $this->assertNotNull($battle->seed);
+
+        // 同じシードなら同じ結果が再現できる（＝ログを保存する必要がない）
+        $a = $svc->stats($me); $b = $svc->stats($rival);
+        $r1 = $svc->simulate($a, $b, 12345);
+        $r2 = $svc->simulate($a, $b, 12345);
+        $this->assertSame($r1['log'], $r2['log'], '同一シードは完全に再現される');
+        $this->assertNotSame($r1['log'], $svc->simulate($a, $b, 999)['log']);
+
+        // 自分とは戦えない
+        $this->actingAs($me)->postJson(route('monsters.battle', $me))->assertStatus(400);
+    }
+
+    public function test_raid_boss_progress_is_derived_from_point_logs(): void
+    {
+        $svc = app(\App\Services\MonsterService::class);
+        $u = User::factory()->create();
+        $boss = $svc->currentBoss();
+
+        $before = $svc->raidProgress($boss)['damage'];
+        app(PointService::class)->award($u, 300, 'test', 'テスト加算');
+        $after = $svc->raidProgress($boss);
+
+        $this->assertSame($before + 300, $after['damage'], '獲得ptがそのままボスへのダメージになる');
+        $this->assertGreaterThan(0, $after['percent']);
+        $this->assertTrue($after['contributors']->contains(fn ($c) => $c['user']->id === $u->id));
+
+        // ボスは週に1行だけ（同週に何度呼んでも増えない）
+        $svc->currentBoss(); $svc->currentBoss();
+        $this->assertDatabaseCount('raid_bosses', 1);
+    }
+
     public function test_text_tool_is_available_to_members_only(): void
     {
         $user = User::factory()->create();
