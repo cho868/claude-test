@@ -26,6 +26,7 @@ use App\Http\Controllers\ScheduleEventController;
 use App\Http\Controllers\SleepRecordController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\TierListController;
+use App\Http\Controllers\ToolsController;
 use App\Http\Controllers\TournamentController;
 use Illuminate\Support\Facades\Route;
 
@@ -111,9 +112,26 @@ Route::middleware('auth')->group(function () {
     Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
     Route::post('expenses/budget', [ExpenseController::class, 'budget'])->name('expenses.budget');
 
+    // ツール群
+    Route::get('tools', [ToolsController::class, 'index'])->name('tools.index');
     // 画像変換(ブラウザ内で完結・サーバーに送信しない)
     Route::get('tools/image', [ImageToolController::class, 'index'])->name('tools.image');
     Route::get('tools/text', [ImageToolController::class, 'text'])->name('tools.text');
+    // クライアント完結のツール
+    Route::get('tools/qr', [ToolsController::class, 'qr'])->name('tools.qr');
+    Route::get('tools/lottery', [ToolsController::class, 'lottery'])->name('tools.lottery');
+    Route::get('tools/base64', [ToolsController::class, 'base64'])->name('tools.base64');
+    Route::get('tools/ip', [ToolsController::class, 'ip'])->name('tools.ip');
+    // サーバー側で外部にアクセスするツール(SSRF対策済み・レート制限あり)
+    Route::get('tools/ogp', [ToolsController::class, 'ogpForm'])->name('tools.ogp');
+    Route::post('tools/ogp', [ToolsController::class, 'ogpFetch'])
+        ->middleware('throttle:20,1')->name('tools.ogp.fetch');
+    Route::get('tools/ssl', [ToolsController::class, 'sslForm'])->name('tools.ssl');
+    Route::post('tools/ssl', [ToolsController::class, 'sslCheck'])
+        ->middleware('throttle:20,1')->name('tools.ssl.check');
+    Route::get('tools/capture', [ToolsController::class, 'capture'])->name('tools.capture');
+    Route::post('tools/capture', [ToolsController::class, 'captureRun'])
+        ->middleware('throttle:6,1')->name('tools.capture.run');
 
     // 手書きホワイトボード(スマホで書いて家で確認)
     Route::resource('whiteboards', WhiteboardController::class)->except(['show']);

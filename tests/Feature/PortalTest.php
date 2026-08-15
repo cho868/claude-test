@@ -527,6 +527,63 @@ class PortalTest extends TestCase
             ->assertSee('完全ローカル処理');
     }
 
+    public function test_tool_pages_require_login_and_render(): void
+    {
+        $user = User::factory()->create();
+        $pages = ['tools.index','tools.qr','tools.lottery','tools.base64','tools.ip','tools.ogp','tools.ssl','tools.capture'];
+
+        // 未ログインは全てログイン画面へ（actingAsは後続に効くので先にまとめて確認）
+        foreach ($pages as $name) {
+            $this->get(route($name))->assertRedirect(route('login'));
+        }
+        foreach ($pages as $name) {
+            $this->actingAs($user)->get(route($name))->assertOk();
+        }
+    }
+
+    public function test_url_tools_block_internal_network_ssrf(): void
+    {
+        // レート制限に阻まれず「SSRF拒否そのもの」を検証したいので除外する
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+        $user = User::factory()->create();
+
+        // 内部ネットワーク・ローカルホスト・別スキームは拒否される
+        $blocked = [
+            'http://127.0.0.1/', 'http://localhost/', 'http://192.168.0.1/',
+            'http://10.0.0.1/', 'http://169.254.169.254/', 'file:///etc/passwd',
+        ];
+        foreach ($blocked as $url) {
+            foreach (['tools.ogp.fetch', 'tools.ssl.check'] as $route) {
+                $res = $this->actingAs($user)->postJson(route($route), ['url' => $url]);
+                $this->assertSame(422, $res->status(), "{$url} が {$route} で拒否されていない");
+                $this->assertFalse($res->json('ok'), "{$url} が {$route} で通ってしまった");
+            }
+        }
+        // キャプチャは1分6回制限があるので代表1件だけ確認（Chromium未導入なら503でも可）
+        $res = $this->actingAs($user)->postJson(route('tools.capture.run'), ['url' => 'http://192.168.0.1/']);
+        $this->assertContains($res->status(), [422, 503]);
+        $this->assertFalse($res->json('ok'));
+
+        // 空URLも弾く
+        $this->actingAs($user)->postJson(route('tools.ssl.check'), ['url' => ''])
+            ->assertStatus(422);
+    }
+
+    public function test_safe_url_accepts_public_and_rejects_private(): void
+    {
+        $svc = \App\Services\SafeUrl::class;
+
+        $this->assertFalse($svc::check('http://127.0.0.1')['ok']);
+        $this->assertFalse($svc::check('http://192.168.10.5:8080/x')['ok']);
+        $this->assertFalse($svc::check('ftp://example.com')['ok']);
+        $this->assertFalse($svc::check('')['ok']);
+
+        // スキーム省略はhttpsとして扱う（名前解決できる公開ドメインで確認）
+        $r = $svc::check('example.com');
+        $this->assertTrue($r['ok']);
+        $this->assertSame('https://example.com', $r['url']);
+    }
+
     public function test_expense_records_are_private_but_shared_ones_are_visible(): void
     {
         $me = User::factory()->create();

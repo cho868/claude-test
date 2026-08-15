@@ -39,8 +39,16 @@
                                 'expenses.index' => ['💰', '家計簿'],
                             ]],
                             'ツール' => ['🧰', [
-                                'tools.image' => ['🖼️', '画像変換'],
-                                'tools.text'  => ['🔤', '文字変換'],
+                                'tools.index'   => ['🧰', 'ツール一覧'],
+                                'tools.image'   => ['🖼️', '画像変換'],
+                                'tools.text'    => ['🔤', '文字変換'],
+                                'tools.qr'      => ['🔳', 'QRコード作成'],
+                                'tools.ogp'     => ['🔍', 'OGP確認'],
+                                'tools.ssl'     => ['🔒', 'SSLチェッカー'],
+                                'tools.ip'      => ['📡', 'IPアドレス確認'],
+                                'tools.capture' => ['📸', 'ページ→PDF/画像'],
+                                'tools.base64'  => ['🧩', 'Base64→画像'],
+                                'tools.lottery' => ['🎲', 'くじ引き・抽選'],
                             ]],
                             'みんな' => ['👥', [
                                 'surveys.index'   => ['🗳️', 'アンケート'],

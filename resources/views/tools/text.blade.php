@@ -150,6 +150,55 @@
 </div>
 
 <script>
+// MD5（SubtleCryptoが対応していないため実装。RFC1321のとおり）
+function md5(str) {
+  const S = [
+    7,12,17,22, 7,12,17,22, 7,12,17,22, 7,12,17,22,
+    5, 9,14,20, 5, 9,14,20, 5, 9,14,20, 5, 9,14,20,
+    4,11,16,23, 4,11,16,23, 4,11,16,23, 4,11,16,23,
+    6,10,15,21, 6,10,15,21, 6,10,15,21, 6,10,15,21,
+  ];
+  const K = [...Array(64)].map((_, i) => Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296));
+  // 32bit加算（桁あふれを16bitずつ処理して符号の事故を防ぐ）
+  const add = (x, y) => {
+    const l = (x & 0xFFFF) + (y & 0xFFFF);
+    const m = (x >> 16) + (y >> 16) + (l >> 16);
+    return (m << 16) | (l & 0xFFFF);
+  };
+  const rl = (n, c) => (n << c) | (n >>> (32 - c));
+
+  // UTF-8バイト列 → 32bitワード列（末尾にビット長を付ける）
+  const bytes = new TextEncoder().encode(str);
+  const nWords = (((bytes.length + 8) >> 6) + 1) * 16;
+  const x = new Array(nWords).fill(0);
+  for (let i = 0; i < bytes.length; i++) x[i >> 2] |= bytes[i] << ((i % 4) * 8);
+  x[bytes.length >> 2] |= 0x80 << ((bytes.length % 4) * 8);
+  x[nWords - 2] = bytes.length * 8;
+
+  let a0 = 1732584193, b0 = -271733879, c0 = -1732584194, d0 = 271733878;
+  for (let i = 0; i < nWords; i += 16) {
+    let [a, b, c, d] = [a0, b0, c0, d0];
+    for (let j = 0; j < 64; j++) {
+      let f, g;
+      if (j < 16)      { f = (b & c) | (~b & d);      g = j; }
+      else if (j < 32) { f = (d & b) | (~d & c);      g = (5 * j + 1) % 16; }
+      else if (j < 48) { f = b ^ c ^ d;               g = (3 * j + 5) % 16; }
+      else             { f = c ^ (b | ~d);            g = (7 * j) % 16; }
+      const tmp = d;
+      d = c; c = b;
+      b = add(b, rl(add(add(a, f), add(K[j], x[i + g])), S[j]));
+      a = tmp;
+    }
+    a0 = add(a0, a); b0 = add(b0, b); c0 = add(c0, c); d0 = add(d0, d);
+  }
+  const hex = (n) => {
+    let s = '';
+    for (let i = 0; i < 4; i++) s += ((n >> (i * 8)) & 0xFF).toString(16).padStart(2, '0');
+    return s;
+  };
+  return hex(a0) + hex(b0) + hex(c0) + hex(d0);
+}
+
 function textTools() {
   const U = c => String.fromCodePoint(c);
   const build = (upper, lower, digit, ex = {}) => {
@@ -298,9 +347,12 @@ function textTools() {
     },
 
     async calcHash() {
-      if (!crypto?.subtle) { this.hashes = [{ label:'—', out:'HTTPS接続時のみ利用できます' }]; return; }
       const data = new TextEncoder().encode(this.input);
-      const out = [];
+      const out = [{ label: 'MD5', out: md5(this.input) }];
+      if (!crypto?.subtle) {
+        this.hashes = out.concat([{ label:'SHA系', out:'HTTPS接続時のみ利用できます' }]);
+        return;
+      }
       for (const algo of ['SHA-1', 'SHA-256', 'SHA-512']) {
         const buf = await crypto.subtle.digest(algo, data);
         out.push({ label: algo, out: [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('') });
