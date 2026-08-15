@@ -98,6 +98,7 @@ Route::middleware('auth')->group(function () {
 
     // 画像変換(ブラウザ内で完結・サーバーに送信しない)
     Route::get('tools/image', [ImageToolController::class, 'index'])->name('tools.image');
+    Route::get('tools/text', [ImageToolController::class, 'text'])->name('tools.text');
 
     // 手書きホワイトボード(スマホで書いて家で確認)
     Route::resource('whiteboards', WhiteboardController::class)->except(['show']);

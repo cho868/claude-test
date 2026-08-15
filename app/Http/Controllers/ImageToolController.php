@@ -13,4 +13,10 @@ class ImageToolController extends Controller
     {
         return view('tools.image');
     }
+
+    /** 文字変換ツール（装飾フォント・ケース変換・エンコード等。こちらもブラウザ内で完結） */
+    public function text()
+    {
+        return view('tools.text');
+    }
 }

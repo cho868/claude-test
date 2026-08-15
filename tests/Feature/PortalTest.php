@@ -527,6 +527,17 @@ class PortalTest extends TestCase
             ->assertSee('完全ローカル処理');
     }
 
+    public function test_text_tool_is_available_to_members_only(): void
+    {
+        $user = User::factory()->create();
+
+        $this->get(route('tools.text'))->assertRedirect(route('login'));
+        $this->actingAs($user)->get(route('tools.text'))
+            ->assertOk()
+            ->assertSee('文字変換')
+            ->assertSee('装飾フォント');
+    }
+
     private const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
 
     public function test_whiteboard_create_save_and_share(): void
