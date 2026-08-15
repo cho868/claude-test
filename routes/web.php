@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FitnessController;
+use App\Http\Controllers\ImageToolController;
 use App\Http\Controllers\LinkController;
 use App\Http\Controllers\WhiteboardController;
 use App\Http\Controllers\MatchRecordController;
@@ -94,6 +95,9 @@ Route::middleware('auth')->group(function () {
     Route::get('steam', [SteamController::class, 'index'])->name('steam.index');
     Route::get('steam/mine', [SteamController::class, 'mine'])->name('steam.mine');
     Route::get('steam/achievements', [SteamController::class, 'achievements'])->name('steam.achievements');
+
+    // 画像変換(ブラウザ内で完結・サーバーに送信しない)
+    Route::get('tools/image', [ImageToolController::class, 'index'])->name('tools.image');
 
     // 手書きホワイトボード(スマホで書いて家で確認)
     Route::resource('whiteboards', WhiteboardController::class)->except(['show']);
