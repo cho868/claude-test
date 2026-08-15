@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FitnessController;
 use App\Http\Controllers\ImageToolController;
 use App\Http\Controllers\LinkController;
@@ -103,6 +104,12 @@ Route::middleware('auth')->group(function () {
     Route::put('monsters', [MonsterController::class, 'update'])->name('monsters.update');
     Route::post('monsters/battle/{opponent}', [MonsterController::class, 'battle'])
         ->middleware('throttle:20,1')->name('monsters.battle');
+
+    // 家計簿(既定は自分だけに見える。共有した支出のみ身内に表示)
+    Route::get('expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+    Route::post('expenses', [ExpenseController::class, 'store'])->name('expenses.store');
+    Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
+    Route::post('expenses/budget', [ExpenseController::class, 'budget'])->name('expenses.budget');
 
     // 画像変換(ブラウザ内で完結・サーバーに送信しない)
     Route::get('tools/image', [ImageToolController::class, 'index'])->name('tools.image');

@@ -19,9 +19,9 @@
             <span class="text-4xl">🖼️</span>
             <p class="mt-2 font-semibold">ここに画像をドロップ / タップして選択</p>
             <p class="mt-1 text-xs text-slate-500">
-                JPEG・PNG・WebP・GIF・BMP・AVIF・TIFF・HEIC / 複数まとめてOK
+                JPEG・PNG・WebP・GIF・BMP・AVIF・TIFF・HEIC・PDF / 複数まとめてOK
             </p>
-            <input type="file" accept="image/*,.heic,.heif,.tif,.tiff" multiple class="hidden"
+            <input type="file" accept="image/*,.heic,.heif,.tif,.tiff,.pdf" multiple class="hidden"
                    @change="addFiles($event.target.files); $event.target.value = ''">
         </label>
     </div>
@@ -74,13 +74,46 @@
 
             {{-- リサイズ --}}
             <div>
-                <label class="block text-sm font-medium text-slate-700">最大サイズ（任意）</label>
+                <label class="block text-sm font-medium text-slate-700" x-show="!isPdf || true">最大サイズ（任意）</label>
                 <div class="mt-1 flex items-center gap-2">
                     <input type="number" x-model.number="maxSize" min="0" step="100" placeholder="変更しない"
                            class="w-32 rounded-lg border-slate-300 text-sm shadow-sm">
                     <span class="text-sm text-slate-500">px（長辺）</span>
                 </div>
                 <p class="mt-1 text-xs text-slate-400">空欄/0なら元の解像度のまま</p>
+            </div>
+        </div>
+
+        {{-- 色を指定して透明化（クロマキー） --}}
+        <div class="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <input type="checkbox" x-model="chroma" @change="if (chroma && (format === 'image/jpeg' || isPdf)) format = 'image/png'"
+                       class="rounded border-slate-300">
+                🪄 指定した色を透明にする
+            </label>
+            <div x-show="chroma" class="mt-3 space-y-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs text-slate-500">透明にする色</span>
+                    <input type="color" x-model="chromaColor" class="h-9 w-14 cursor-pointer rounded border-slate-300">
+                    <input type="text" x-model="chromaColor" class="w-24 rounded-lg border-slate-300 font-mono text-xs shadow-sm">
+                    <button type="button" @click="items[0] && detectBg(items[0])" x-show="items.length"
+                            class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-100">
+                        🔍 背景色を自動検出
+                    </button>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500">
+                        許容範囲 <span class="font-mono" x-text="tolerance + '%'"></span>
+                        <span class="text-slate-400">（大きいほど似た色もまとめて透明に）</span>
+                    </label>
+                    <input type="range" min="0" max="60" step="1" x-model.number="tolerance" class="mt-1 w-full">
+                </div>
+                <p class="text-xs text-amber-600" x-show="!supportsAlpha">
+                    ⚠️ 透明化するには出力形式を PNG か WebP にしてください（JPEG/PDFは透過を保存できません）
+                </p>
+                <p class="text-xs text-slate-400">
+                    白背景のロゴやスクショの背景抜きに便利。境界は自動でなめらかにします。
+                </p>
             </div>
         </div>
 
@@ -98,6 +131,17 @@
                 クリア
             </button>
         </div>
+    </div>
+
+    {{-- PDF出力の結果 --}}
+    <div x-show="pdfUrl" class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-4">
+        <span class="text-3xl">📄</span>
+        <div class="min-w-0 flex-1">
+            <p class="font-bold text-emerald-800">PDFを作成しました</p>
+            <p class="text-xs text-emerald-700" x-text="`${pdfName} / ${pdfSize} / 全${items.length}ページ`"></p>
+        </div>
+        <a :href="pdfUrl" :download="pdfName"
+           class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">⬇️ PDFを保存</a>
     </div>
 
     {{-- ファイル一覧 --}}
@@ -136,6 +180,8 @@
             <li><b>PNG出力＝完全可逆</b>。JPEG/WebPは品質100%でも原理上わずかに劣化します（元がJPEGの場合、既にある劣化は元に戻せません）</li>
             <li>TIFF / HEIC はブラウザが直接読めないため、必要時に変換ライブラリを自動で読み込みます（要ネット接続）</li>
             <li>EXIF等のメタデータは変換時に削除されます（撮影場所などが残らないので共有時はむしろ安全）。EXIFの回転情報は反映済み</li>
+            <li><b>PDF出力</b>は複数画像を1つのPDF（1画像=1ページ）にまとめます。PDFを読み込むと1ページ目を画像として取り込みます</li>
+            <li><b>色の透明化</b>はPNG/WebP出力時のみ有効（JPEG/PDFは透過を保存できない形式のため）</li>
             <li>処理は全てブラウザ内で完結し、画像がサーバーに送られることはありません</li>
         </ul>
     </div>
@@ -147,13 +193,18 @@ function imageConverter() {
     items: [], format: 'image/png', quality: 0.92, alphaMode: 'keep',
     bgColor: '#ffffff', maxSize: null, dragging: false, busy: false, doneCount: 0,
     seq: 0,
+    // 色指定の透明化（クロマキー）
+    chroma: false, chromaColor: '#ffffff', tolerance: 12,
+    pdfUrl: '', pdfName: '', pdfSize: '',
     formats: [
       { mime: 'image/png',  label: 'PNG',  ext: 'png'  },
       { mime: 'image/jpeg', label: 'JPEG', ext: 'jpg'  },
       { mime: 'image/webp', label: 'WebP', ext: 'webp' },
+      { mime: 'application/pdf', label: 'PDF', ext: 'pdf' },
     ],
     get lossless() { return this.format === 'image/png'; },
-    get supportsAlpha() { return this.format !== 'image/jpeg'; },
+    get isPdf() { return this.format === 'application/pdf'; },
+    get supportsAlpha() { return this.format !== 'image/jpeg' && !this.isPdf; },
 
     addFiles(fileList) {
       for (const file of fileList) {
@@ -221,7 +272,68 @@ function imageConverter() {
         return await createImageBitmap(cv);
       }
 
+      // ④ PDF（1ページ目を画像として取り込む）
+      if (/\.pdf$/.test(name) || /pdf/.test(file.type)) {
+        await this.loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs');
+        const pdfjs = window.pdfjsLib || globalThis.pdfjsLib;
+        if (!pdfjs) throw new Error('PDFの読み込みに失敗しました');
+        pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+        const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+        const page = await doc.getPage(1);
+        const vp = page.getViewport({ scale: 2 });   // 2倍で描画して精細に
+        const cv = document.createElement('canvas');
+        cv.width = vp.width; cv.height = vp.height;
+        await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+        return await createImageBitmap(cv);
+      }
+
       throw new Error('この形式は読み込めませんでした');
+    },
+
+    /** 指定色を透明にする（色距離がしきい値以内のピクセルのalphaを0に） */
+    applyChroma(ctx, w, h) {
+      const m = /^#?([0-9a-f]{6})$/i.exec(this.chromaColor);
+      if (!m) return;
+      const n = parseInt(m[1], 16);
+      const tr = n >> 16, tg = (n >> 8) & 255, tb = n & 255;
+      // 許容値(0-100%)を色距離の二乗に変換（最大距離は約441）
+      const limit = Math.pow(this.tolerance / 100 * 441, 2);
+
+      const img = ctx.getImageData(0, 0, w, h);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] === 0) continue;
+        const dr = d[i] - tr, dg = d[i + 1] - tg, db = d[i + 2] - tb;
+        const dist = dr * dr + dg * dg + db * db;
+        if (dist <= limit) {
+          d[i + 3] = 0;
+        } else if (dist <= limit * 2.2) {
+          // 境界をなめらかに（ジャギー防止）
+          d[i + 3] = Math.round(d[i + 3] * Math.min(1, (dist - limit) / (limit * 1.2 + 1)));
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    },
+
+    /** 画像の四隅から背景色を推定する */
+    async detectBg(item) {
+      try {
+        const bmp = await this.decode(item.file);
+        const cv = document.createElement('canvas');
+        cv.width = bmp.width; cv.height = bmp.height;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(bmp, 0, 0);
+        const pts = [[0, 0], [cv.width - 1, 0], [0, cv.height - 1], [cv.width - 1, cv.height - 1]];
+        const counts = {};
+        for (const [x, y] of pts) {
+          const p = ctx.getImageData(x, y, 1, 1).data;
+          const hex = '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+          counts[hex] = (counts[hex] || 0) + 1;
+        }
+        this.chromaColor = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+        this.chroma = true;
+        if (this.format === 'image/jpeg' || this.isPdf) this.format = 'image/png';
+      } catch (e) { /* 読めない形式は無視 */ }
     },
 
     async convertOne(item) {
@@ -248,6 +360,11 @@ function imageConverter() {
       ctx.drawImage(bmp, 0, 0, w, h);
       bmp.close?.();
 
+      // 指定色を透明化（PNG/WebP のときのみ意味がある）
+      if (this.chroma && this.supportsAlpha && this.alphaMode !== 'flatten') {
+        this.applyChroma(ctx, w, h);
+      }
+
       const fmt = this.formats.find(f => f.mime === this.format);
       const blob = await new Promise((res, rej) =>
         cv.toBlob(b => b ? res(b) : rej(new Error('変換に失敗しました')), this.format,
@@ -264,13 +381,59 @@ function imageConverter() {
     },
 
     async convertAll() {
-      this.busy = true; this.doneCount = 0;
+      this.busy = true; this.doneCount = 0; this.pdfUrl = '';
+      try {
+        if (this.isPdf) { await this.buildPdf(); }
+        else {
+          for (const item of this.items) {
+            try { await this.convertOne(item); }
+            catch (e) { item.error = e.message || '変換に失敗しました'; }
+            this.doneCount++;
+          }
+        }
+      } finally { this.busy = false; }
+    },
+
+    /** 全画像を1つのPDFにまとめる（1画像=1ページ・向きは自動） */
+    async buildPdf() {
+      await this.loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+      const { jsPDF } = window.jspdf;
+      let pdf = null;
+
       for (const item of this.items) {
-        try { await this.convertOne(item); }
-        catch (e) { item.error = e.message || '変換に失敗しました'; }
+        item.error = ''; item.result = null;
+        try {
+          const bmp = await this.decode(item.file);
+          let w = bmp.width, h = bmp.height;
+          if (this.maxSize && this.maxSize > 0 && Math.max(w, h) > this.maxSize) {
+            const r = this.maxSize / Math.max(w, h);
+            w = Math.round(w * r); h = Math.round(h * r);
+          }
+          const cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          const ctx = cv.getContext('2d');
+          // PDFは透過を扱えないので必ず背景を塗る
+          ctx.fillStyle = this.bgColor;
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(bmp, 0, 0, w, h);
+          bmp.close?.();
+
+          const data = cv.toDataURL('image/jpeg', this.quality);
+          const orient = w >= h ? 'l' : 'p';
+          if (!pdf) pdf = new jsPDF({ orientation: orient, unit: 'px', format: [w, h] });
+          else pdf.addPage([w, h], orient);
+          pdf.addImage(data, 'JPEG', 0, 0, w, h);
+        } catch (e) {
+          item.error = e.message || '変換に失敗しました';
+        }
         this.doneCount++;
       }
-      this.busy = false;
+
+      if (!pdf) throw new Error('PDFにできる画像がありませんでした');
+      const blob = pdf.output('blob');
+      this.pdfUrl = URL.createObjectURL(blob);
+      this.pdfName = (this.items[0]?.name.replace(/\.[^.]+$/, '') || 'images') + '.pdf';
+      this.pdfSize = this.fmtSize(blob.size);
     },
 
     async downloadAll() {

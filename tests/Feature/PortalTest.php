@@ -527,6 +527,45 @@ class PortalTest extends TestCase
             ->assertSee('完全ローカル処理');
     }
 
+    public function test_expense_records_are_private_but_shared_ones_are_visible(): void
+    {
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+
+        // 記録すると+3pt（1日1回だけ）
+        $this->actingAs($me)->post(route('expenses.store'), [
+            'kind' => 'expense', 'spent_on' => today()->toDateString(),
+            'amount' => 1200, 'category' => 'food', 'memo' => 'ヒミツの買物メモ',
+        ])->assertRedirect();
+        $before = (int) $me->refresh()->points;
+        $this->actingAs($me)->post(route('expenses.store'), [
+            'kind' => 'income', 'spent_on' => today()->toDateString(),
+            'amount' => 5000, 'category' => 'salary',
+        ])->assertRedirect();
+        $this->assertSame($before, (int) $me->refresh()->points, '同日2件目はポイント加算なし');
+
+        // 他人の家計簿は見えない
+        $this->actingAs($other)->get(route('expenses.index'))->assertOk()->assertDontSee('ヒミツの買物メモ');
+        // 自分には見える。収支も計算される
+        $this->actingAs($me)->get(route('expenses.index'))
+            ->assertOk()->assertSee('ヒミツの買物メモ')->assertSee('¥3,800');   // 5000-1200
+
+        // 共有した支出は身内に見える
+        $this->actingAs($me)->post(route('expenses.store'), [
+            'kind' => 'expense', 'spent_on' => today()->toDateString(),
+            'amount' => 3000, 'category' => 'social', 'memo' => '共同購入', 'is_shared' => '1',
+        ]);
+        $this->actingAs($other)->get(route('expenses.index'))->assertOk()->assertSee('共同購入');
+
+        // 他人の記録は削除できない
+        $mine = \App\Models\Expense::where('user_id', $me->id)->first();
+        $this->actingAs($other)->delete(route('expenses.destroy', $mine))->assertForbidden();
+
+        // 予算の設定
+        $this->actingAs($me)->post(route('expenses.budget'), ['monthly_budget' => 50000])->assertRedirect();
+        $this->assertSame(50000, (int) $me->refresh()->monthly_budget);
+    }
+
     public function test_monster_creation_stats_and_battle(): void
     {
         $me = User::factory()->create(['points' => 500, 'total_logins' => 30, 'login_streak' => 5]);

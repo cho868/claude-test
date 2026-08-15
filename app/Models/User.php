@@ -109,6 +109,11 @@ class User extends Authenticatable
         return $this->hasMany(Whiteboard::class);
     }
 
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
     public function tournaments(): HasMany
     {
         return $this->hasMany(Tournament::class);
