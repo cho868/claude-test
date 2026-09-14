@@ -731,4 +731,76 @@ class PortalTest extends TestCase
             'image_data' => 'data:text/html;base64,PHNjcmlwdD4=',
         ])->assertSessionHasErrors('image_data');
     }
+
+    public function test_diary_is_private_by_default_and_renders_markdown(): void
+    {
+        $me = User::factory()->create();
+        $other = User::factory()->create(['is_admin' => true]); // 管理者でも他人の非公開は覗けない
+
+        // 書くと +10pt（1日1回だけ）
+        $before = (int) $me->points;
+        $this->actingAs($me)->post(route('diaries.store'), [
+            'entry_date' => today()->toDateString(),
+            'title' => 'ヒミツの一日',
+            'body' => "## 見出し\n\n**ないしょの話** です。",
+            'mood' => 'good',
+            'weather' => 'sunny',
+            'visibility' => 'private',
+        ])->assertRedirect();
+
+        $diary = \App\Models\Diary::firstWhere('user_id', $me->id);
+        $this->assertSame($before + 10, (int) $me->refresh()->points);
+
+        // 2件目はポイント加算なし
+        $after = (int) $me->refresh()->points;
+        $this->actingAs($me)->post(route('diaries.store'), [
+            'entry_date' => today()->subDay()->toDateString(),
+            'body' => '昨日のぶん',
+            'visibility' => 'private',
+        ])->assertRedirect();
+        $this->assertSame($after, (int) $me->refresh()->points, '同日2件目はポイント加算なし');
+
+        // Markdown が HTML になる。気分・天気も出る
+        $this->actingAs($me)->get(route('diaries.show', $diary))
+            ->assertOk()
+            ->assertSee('<strong>ないしょの話</strong>', false)
+            ->assertSee('いい感じ');
+
+        // 他人（管理者でも）は非公開の日記を見られない・一覧にも出ない
+        $this->actingAs($other)->get(route('diaries.show', $diary))->assertForbidden();
+        $this->actingAs($other)->get(route('diaries.feed'))->assertOk()->assertDontSee('ヒミツの一日');
+
+        // 共有すると「みんなの日記」に出る
+        $diary->update(['visibility' => 'members']);
+        $this->actingAs($other)->get(route('diaries.feed'))->assertOk()->assertSee('ヒミツの一日');
+        $this->actingAs($other)->get(route('diaries.show', $diary))->assertOk();
+
+        // 共有されていても編集・削除は本人だけ
+        $this->actingAs($other)->get(route('diaries.edit', $diary))->assertForbidden();
+        $this->actingAs($other)->delete(route('diaries.destroy', $diary))->assertForbidden();
+
+        // 未来の日付は書けない
+        $this->actingAs($me)->post(route('diaries.store'), [
+            'entry_date' => today()->addDay()->toDateString(),
+            'body' => '未来日記',
+            'visibility' => 'private',
+        ])->assertSessionHasErrors('entry_date');
+
+        // 生HTMLは除去される（XSS対策）
+        $xss = $me->diaries()->create([
+            'entry_date' => today()->subDays(2),
+            'body' => "<script>alert(1)</script>\n\nあんぜん",
+            'visibility' => 'private',
+        ]);
+        $this->actingAs($me)->get(route('diaries.show', $xss))
+            ->assertOk()->assertDontSee('<script>alert(1)</script>', false)->assertSee('あんぜん');
+
+        // 自分の一覧（カレンダー）にはタイトルと連続記録が出る
+        $this->actingAs($me)->get(route('diaries.index'))->assertOk()->assertSee('ヒミツの一日');
+
+        // 入力フォームも開ける（日付指定つき / 編集）
+        $this->actingAs($me)->get(route('diaries.create', ['date' => today()->subDays(3)->toDateString()]))
+            ->assertOk()->assertSee(today()->subDays(3)->toDateString());
+        $this->actingAs($me)->get(route('diaries.edit', $diary))->assertOk()->assertSee('ヒミツの一日');
+    }
 }

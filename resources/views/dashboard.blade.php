@@ -69,6 +69,7 @@
                         ['tools.lottery', '🎲', 'くじ引き', 'ランダム抽選'],
                     ],
                     '👥 みんな' => [
+                        ['diaries.index', '📔', '日記', 'Markdownで記録・共有'],
                         ['surveys.index', '🗳️', 'アンケート', 'みんなで投票'],
                         ['schedule.index', '📅', '予定', '予定と出欠管理'],
                         ['documents.index', '📚', '資料', '手順書を共有'],

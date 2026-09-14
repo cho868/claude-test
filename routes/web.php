@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChallengeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DiaryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FitnessController;
 use App\Http\Controllers\ImageToolController;
@@ -66,6 +67,11 @@ Route::middleware('auth')->group(function () {
 
     // 資料 / ナレッジ(Markdown 記事)
     Route::resource('documents', DocumentController::class);
+
+    // 日記(Markdown・既定は自分のみ。共有したものだけ「みんなの日記」に出る)
+    // ※ /diaries/{diary} より先に置かないと feed が ID として解決されてしまう
+    Route::get('diaries/feed', [DiaryController::class, 'feed'])->name('diaries.feed');
+    Route::resource('diaries', DiaryController::class);
 
     // フィットネス(体重・運動の記録と可視化)
     Route::get('fitness', [FitnessController::class, 'index'])->name('fitness.index');

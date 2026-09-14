@@ -51,6 +51,7 @@
                                 'tools.lottery' => ['🎲', 'くじ引き・抽選'],
                             ]],
                             'みんな' => ['👥', [
+                                'diaries.index'   => ['📔', '日記'],
                                 'surveys.index'   => ['🗳️', 'アンケート'],
                                 'schedule.index'  => ['📅', '予定'],
                                 'documents.index' => ['📚', '資料'],

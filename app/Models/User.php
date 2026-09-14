@@ -139,6 +139,11 @@ class User extends Authenticatable
         return $this->hasMany(Document::class);
     }
 
+    public function diaries(): HasMany
+    {
+        return $this->hasMany(Diary::class);
+    }
+
     public function weightRecords(): HasMany
     {
         return $this->hasMany(WeightRecord::class);
