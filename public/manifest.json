@@ -1,0 +1,31 @@
+{
+    "id": "/",
+    "name": "身内ポータル",
+    "short_name": "ポータル",
+    "description": "身内専用のポータル。ソシャゲの日課チェックと通知、便利ツール。",
+    "lang": "ja",
+    "start_url": "/dashboard",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "theme_color": "#0f172a",
+    "background_color": "#f1f5f9",
+    "icons": [
+        { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ],
+    "shortcuts": [
+        {
+            "name": "ソシャゲ日課",
+            "short_name": "日課",
+            "url": "/social-games",
+            "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "日記を書く",
+            "short_name": "日記",
+            "url": "/diaries/create"
+        }
+    ]
+}

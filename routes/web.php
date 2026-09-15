@@ -23,6 +23,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\GameSessionController;
 use App\Http\Controllers\MemoController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushController;
 use App\Http\Controllers\ScheduleEventController;
 use App\Http\Controllers\SleepRecordController;
 use App\Http\Controllers\SurveyController;
@@ -150,12 +151,21 @@ Route::middleware('auth')->group(function () {
     Route::delete('links/{link}', [LinkController::class, 'destroy'])->name('links.destroy');
 
     // ソシャゲ管理(日課/週課/月課チェックリスト)
+    // ※ 固定パスは {game} より先に置く
     Route::get('social-games', [SocialGameController::class, 'index'])->name('social.index');
     Route::post('social-games', [SocialGameController::class, 'storeGame'])->name('social.games.store');
+    Route::post('social-games/reorder', [SocialGameController::class, 'reorder'])->name('social.reorder');
+    Route::post('social-games/notify', [SocialGameController::class, 'updateNotify'])->name('social.notify');
+    Route::post('social-games/tasks/{task}/toggle', [SocialGameController::class, 'toggle'])->name('social.tasks.toggle');
+    Route::delete('social-games/tasks/{task}', [SocialGameController::class, 'destroyTask'])->name('social.tasks.destroy');
+    Route::patch('social-games/{game}', [SocialGameController::class, 'updateGame'])->name('social.games.update');
     Route::delete('social-games/{game}', [SocialGameController::class, 'destroyGame'])->name('social.games.destroy');
     Route::post('social-games/{game}/tasks', [SocialGameController::class, 'storeTask'])->name('social.tasks.store');
-    Route::delete('social-games/tasks/{task}', [SocialGameController::class, 'destroyTask'])->name('social.tasks.destroy');
-    Route::post('social-games/tasks/{task}/toggle', [SocialGameController::class, 'toggle'])->name('social.tasks.toggle');
+
+    // Web Push の購読管理(ソシャゲ日課のリマインドに使う)
+    Route::post('push/subscribe', [PushController::class, 'subscribe'])->name('push.subscribe');
+    Route::post('push/unsubscribe', [PushController::class, 'unsubscribe'])->name('push.unsubscribe');
+    Route::post('push/test', [PushController::class, 'test'])->name('push.test');
 
     // 管理者エリア
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {

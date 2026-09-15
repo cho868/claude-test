@@ -30,6 +30,8 @@ class User extends Authenticatable
         'birth_day',
         'target_weight_kg',
         'weekly_exercise_goal',
+        'routine_notify',
+        'routine_notify_before',
     ];
 
     protected $hidden = [
@@ -48,6 +50,8 @@ class User extends Authenticatable
             'weekly_exercise_goal' => 'integer',
             'birth_month' => 'integer',
             'birth_day' => 'integer',
+            'routine_notify' => 'boolean',
+            'routine_notify_before' => 'integer',
         ];
     }
 
@@ -172,6 +176,11 @@ class User extends Authenticatable
     public function links(): HasMany
     {
         return $this->hasMany(Link::class);
+    }
+
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
     }
 
     /**

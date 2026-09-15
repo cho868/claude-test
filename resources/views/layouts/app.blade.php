@@ -8,6 +8,14 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
     <style>[x-cloak]{display:none}</style>
+
+    {{-- PWA: ホーム画面に追加するとアプリのように開き、Web Pushで通知を受け取れる --}}
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="ポータル">
 </head>
 <body class="h-full bg-slate-100 text-slate-800">
 <div class="min-h-full">
@@ -26,7 +34,7 @@
                                 'games.index'       => ['🎮', 'ゲーム時間'],
                                 'steam.index'       => ['🕹️', 'Steam'],
                                 'matches.index'     => ['⚔️', '戦績'],
-                                'social.index'      => ['📋', 'ソシャゲ管理'],
+                                'social.index'      => ['📋', 'ソシャゲ日課'],
                                 'pokemon.index'     => ['🔴', 'ポケモン計算'],
                                 'arcade.index'      => ['👾', 'ミニゲーム'],
                                 'monsters.index'    => ['🐣', 'モンスター'],
@@ -138,5 +146,13 @@
     </footer>
 </div>
 <x-birthday-party />
+<script>
+    // Service Worker を登録（通知の受け口とオフライン案内。失敗しても本体は普通に動く）
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+        });
+    }
+</script>
 </body>
 </html>

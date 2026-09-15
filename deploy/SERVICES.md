@@ -31,6 +31,7 @@
 |---------|------|---------|---------|--------|
 | **Discord Webhook** | 毎日の状態通知・緊急アラート・**DBバックアップ退避先** | Discordチャンネル設定→連携サービス→ウェブフック | `/etc/portal-notify.conf` の `DISCORD_WEBHOOK` / `BACKUP_WEBHOOK`、GASのプロパティ | URLは実質パスワード。漏らさない |
 | **LINE Messaging API** | 通知のLINE配信（Bot友だち全員に届く） | https://developers.line.biz/console/ | `/etc/portal-notify.conf` の `LINE_TOKEN`、GASのプロパティ | 無料枠は月200通。トークン再発行したら両方更新 |
+| **Web Push（VAPID）** | ソシャゲ日課などのリマインドをスマホに直接通知 | （なし・自前） | ポータルの `.env` の `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`（`php artisan push:vapid` で生成） | **秘密鍵を作り直すと全端末の購読が無効**になるので `.env` はバックアップ対象。iPhoneは「ホーム画面に追加」した状態でないと購読できない。外部サービスの契約・上限なし |
 | **Google Apps Script** | **Gmail監視の見張り番**（XServer期限メール・no-ip確認メールを検知→30分ごと強アラート） | https://script.google.com/ | プロジェクト内 `gmail-xserver-alert.gs`（元は `deploy/gmail-xserver-alert.gs`） | **VPSの外で動くのでVPSが死んでも生きている**。止めるにはGmailで「VPS対応済み」ラベル。コード更新は貼り替えるだけ（トリガー再登録不要） |
 | **healthchecks.io** | 死活監視（毎日のping が**来ない**と通知） | https://healthchecks.io/ | `/etc/portal-notify.conf` の `HEALTHCHECK_URL` | notify.sh の通常実行時にping。落ちた「事後」に気づく用 |
 | **UptimeRobot** | 外形監視（外から `/health` を5分ごと確認） | https://uptimerobot.com/ | UptimeRobot側でURL登録 | **ドメイン監視にしておけばIP変更時も設定不要** |

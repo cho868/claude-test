@@ -26,12 +26,21 @@
 | DB | **SQLite**（単一ファイル。`database/database.sqlite`） |
 | CSS | **Tailwind CSS Play CDN**（`?plugins=typography`） |
 | JS | **Alpine.js 3 CDN**／必要なライブラリは都度 CDN |
-| テスト | PHPUnit — `php artisan test`（**現在 33 tests / 全passing**） |
+| テスト | PHPUnit — `php artisan test`（**現在 38 tests / 全passing**） |
 | Lint | `./vendor/bin/pint` |
 
 ### ⚠️ ビルドステップは無い
 npm も Vite も**使っていない**。CSS/JS を足すときは CDN か Blade 内の `<script>` で完結させる。
 `npm install` や `vite build` を前提にした提案はしないこと。
+
+### PWA（ビルド不要で成立させている）
+`public/manifest.json` と `public/sw.js` を直接置いてあるだけ。両レイアウトの `<head>` から読ませている。
+- Service Worker の役割は **Web Push の受け口** と **オフライン案内（`public/offline.html`）** の2つだけ。
+  ログイン後のHTMLはキャッシュしない（古い内容が出る/端末に残るのを避ける）。
+- アイコンは `php scripts/make-icons.php` が GD で生成（画像ファイルを外から持ち込まない）。
+- **Push は Laravel 側からしか送れない**。Service Worker は自力で時刻トリガーを起こせず、
+  `TimestampTrigger` は Chrome の Origin Trial 止まりで **iOS Safari は非対応**。
+  つまり「定時通知がほしい＝サーバーが要る」。静的PWA単体でやろうとしないこと。
 
 ---
 
@@ -63,7 +72,13 @@ SDの唯一の弱点は**書き込み寿命**。これが判断の軸で、こ�
 とくに**日記は管理者でも他人の非公開分は見られない**（`Diary::canBeViewedBy()` に admin バイパスを入れていない）。
 資料（`Document`）だけは性質が違うので admin が全件見られる。ここは意図的な差。
 
-### ⑤ XSS対策
+### ⑤ 通知はDBに書かない
+リマインドは cron の毎時実行（`php artisan routines:remind`）。
+**「実行時刻そのもの」を重複送信よけに使い、送信履歴を保存しない**＝SD書き込みゼロ。
+`schedule:run`（毎分PHP起動）はラズパイには重いので**入れていない**。cronに直接1行だけ。
+LINEは無料枠が月200通しかなく、緊急通知の枠を食うので**日課通知には使わない**。
+
+### ⑥ XSS対策
 ユーザーが書いた Markdown は必ず以下で描画する（生HTMLを除去）。
 
 ```php
@@ -151,31 +166,54 @@ cd /var/www/portal && sudo bash deploy/deploy-app.sh main
 
 ---
 
-## 6. 直近の状態（2026-09-14）
+## 6. 直近の状態（2026-09-15）
 
 ### 最後にやったこと
-**📔 日記機能を追加**（commit `c20c1fe`／`main` と `claude/busy-faraday-jvrw2n` の両方に push 済み）
-- 月カレンダー、気分/天気の絵文字、連続記録日数、前後の日記リンク
-- Markdown（書く/プレビュー切替）、既定は「自分のみ」、1日1回 +10pt
-- ファイル: `app/Models/Diary.php` / `app/Http/Controllers/DiaryController.php` / `resources/views/diaries/*`
-  / `database/migrations/2026_09_14_100001_create_diaries_table.php`
+**📋 ソシャゲ日課の作り直し + PWA化 + Web Push 通知**
+- **リセット時刻をゲーム単位で設定**（日課の時刻 / 週課の曜日 / 月課の日）。
+  判定は全部 `GameRoutine::periodStart()` 起点。`RoutineTask::currentPeriodKey()` はゲーム側に委譲するだけ。
+  期間キーは 日課=`Y-m-d`（旧形式と互換）/ 週課=`W:Y-m-d` / 月課=`M:Y-m`。
+- **チェックが fetch + 楽観的UI に**（ページ遷移なし）。toggle は `done` を受け取る**冪等**な作りで、連打・再送で裏返らない。
+- 「今日やること」でゲーム横断の残件とリセット残り時間。ゲーム別 / 設定 の3タブ構成。
+- 原神/FGO/ウマ娘/プロセカのテンプレをワンタップ投入（`SocialGameController::TEMPLATES`）。
+- **Web Push**: `php artisan push:vapid` で鍵生成 → `.env` → cron `0 * * * * php artisan routines:remind`。
+  未完了がある時だけ鳴る。⚠️ **iPhoneは「ホーム画面に追加」した状態でないと購読できない**（iOS 16.4+）。
+- ファイル: `app/Models/GameRoutine.php` / `RoutineTask.php` / `PushSubscription.php`、
+  `app/Http/Controllers/SocialGameController.php` / `PushController.php`、
+  `app/Services/PushService.php`、`app/Console/Commands/{RemindRoutines,GenerateVapidKeys}.php`、
+  `resources/views/social/index.blade.php`、`public/{manifest.json,sw.js,offline.html,icons/}`、
+  `database/migrations/2026_09_14_100002_add_reset_rules_and_push_to_routines.php`
+- 依存追加: `minishlink/web-push`（ext-gmp 不要。VAPID署名と本文暗号化は openssl で通る）
+
+### 「PWAを別に作るか」の判断（済み・蒸し返さない）
+ポータルとは別に静的PWA（cho-feedly方式）を建てる案は**採らなかった**。理由:
+1. **定時通知はサーバーが要る**（上記のとおり静的PWA単体では原理的に無理）。別に建てても結局
+   Laravel側の実装が必要になり二重管理になる。
+2. データ同期・Discordへのオフサイトバックアップ・ポイント連携・認証が既にポータル側にある。
+   localStorage だと機種変で消える。
+3. 「使いづらい」の正体はアーキテクチャではなく**UI**（1チェック=1フルページリロード）だった。直せば済む話。
+
+→ **ポータル自体をPWA化する**という形で決着。タスク管理も同じ方針で足す（別機能として `/tasks` を後日）。
 
 ### ラズパイ側で未確認のもの（本人が実施する）
-- [ ] 最新コードのデプロイ（`deploy-app.sh main`）— 日記のマイグレーションを含む
+- [ ] 最新コードのデプロイ（`deploy-app.sh main`）— ソシャゲ/Pushのマイグレーションを含む
+- [ ] `php artisan push:vapid` → `.env` に鍵を設定 → `config:cache`
+- [ ] cron に `0 * * * * cd /var/www/portal && php artisan routines:remind`（RASPBERRYPI.md 9.5）
+- [ ] スマホで「ホーム画面に追加」→ 設定 → 通知を購読 → テスト送信
 - [ ] `log2ram` のインストール
 - [ ] SD週次レポートの cron 登録
 - [ ] `REGISTRATION_INVITE_CODE` の設定
 - [ ] （任意）Chromium — Webページ→PDF/画像ツール用。変換時に300〜500MB使う
 
 ### やりたいことリスト（未着手）
+- **タスク管理（`/tasks`）** — ソシャゲ以外のToDo。別機能として分ける方針で確定済み
+- ソシャゲ日課のオフライン対応（SWでチェックをIndexedDBに貯めて復帰時に同期）
 - スイスドロー形式のトーナメント
 - 身内同士の対戦成績表（総当たりマトリクス）
 - CSV⇔JSON 変換 / テキスト差分比較 / サブスク管理
 
 ### 削除済み（復活させないこと）
 - **Steamのセール機能**（本人の指示で全削除）
-
----
 
 ## 7. 進め方の約束
 
@@ -193,4 +231,4 @@ cd /var/www/portal && sudo bash deploy/deploy-app.sh main
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_xxxxx
 ```
-作業ブランチは `claude/busy-faraday-jvrw2n`。本人の指示で `main` にも直接 push している。
+作業ブランチは会話ごとに指定される（直近は `claude/bold-cori-b1hmys`）。本人の指示があれば `main` にも直接 push する。

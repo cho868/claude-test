@@ -47,6 +47,15 @@ return [
         'client_secret' => env('DISCORD_CLIENT_SECRET'),
     ],
 
+    // Web Push（ソシャゲ日課などのリマインド通知）
+    // 鍵は `php artisan push:vapid` で生成して .env に入れる。未設定なら通知機能は無効。
+    'webpush' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+        // Push サービスへの連絡先（mailto: か https:）。RFC8292 で要求される
+        'subject' => env('VAPID_SUBJECT', 'https://github.com/cho868/claude-test'),
+    ],
+
     // Discord Bot 管理API（同一VPSのlocalhostで動くBotの設定を中継編集）
     // ADMIN_KEY はサーバー側にのみ保持し、ブラウザには出さない
     'discord_bot' => [

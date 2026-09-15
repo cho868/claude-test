@@ -803,4 +803,139 @@ class PortalTest extends TestCase
             ->assertOk()->assertSee(today()->subDays(3)->toDateString());
         $this->actingAs($me)->get(route('diaries.edit', $diary))->assertOk()->assertSee('ヒミツの一日');
     }
+
+    public function test_routine_period_key_follows_the_game_reset_hour(): void
+    {
+        $user = User::factory()->create();
+        // 朝5時リセット・週課は木曜・月課は10日、というゲーム
+        $game = $user->gameRoutines()->create([
+            'name' => 'テストゲーム', 'reset_hour' => 5, 'reset_dow' => 4, 'reset_day' => 10,
+        ]);
+
+        // 深夜2時は「まだ前日」扱い
+        Carbon::setTestNow('2026-09-15 02:00:00');
+        $this->assertSame('2026-09-14', $game->periodKey('daily'));
+        $this->assertSame('2026-09-15 05:00:00', $game->nextResetAt('daily')->toDateTimeString());
+
+        // 5時を回ると次の日に切り替わる
+        Carbon::setTestNow('2026-09-15 05:00:00');
+        $this->assertSame('2026-09-15', $game->periodKey('daily'));
+
+        // 週課は「木曜5時」始まり。9/15(火)なら直前の木曜=9/10が起点
+        $this->assertSame('W:2026-09-10', $game->periodKey('weekly'));
+        $this->assertSame('2026-09-17 05:00:00', $game->nextResetAt('weekly')->toDateTimeString());
+
+        // 月課は10日5時始まり。9/15なら9月分、9/9なら前月分
+        $this->assertSame('M:2026-09', $game->periodKey('monthly'));
+        Carbon::setTestNow('2026-09-09 12:00:00');
+        $this->assertSame('M:2026-08', $game->periodKey('monthly'));
+
+        Carbon::setTestNow();
+    }
+
+    public function test_routine_toggle_is_idempotent_and_protected_from_others(): void
+    {
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+        $game = $me->gameRoutines()->create(['name' => '原神', 'reset_hour' => 5]);
+        $task = $game->tasks()->create(['title' => 'デイリー依頼', 'cadence' => 'daily']);
+
+        // 他人のタスクは触れない（先に済ませる。actingAs は後のテストに効き続けるため）
+        $this->actingAs($other)->postJson(route('social.tasks.toggle', $task), ['done' => true])
+            ->assertForbidden();
+        $this->assertDatabaseCount('routine_completions', 0);
+
+        // done=true を2回送っても行は増えない（楽観的UIの再送に耐える）
+        $this->actingAs($me)->postJson(route('social.tasks.toggle', $task), ['done' => true])
+            ->assertOk()->assertJson(['done' => true]);
+        $this->actingAs($me)->postJson(route('social.tasks.toggle', $task), ['done' => true])
+            ->assertOk()->assertJson(['done' => true]);
+        $this->assertDatabaseCount('routine_completions', 1);
+
+        // 外すと消える
+        $this->actingAs($me)->postJson(route('social.tasks.toggle', $task), ['done' => false])
+            ->assertOk()->assertJson(['done' => false]);
+        $this->assertDatabaseCount('routine_completions', 0);
+    }
+
+    public function test_routine_template_creates_a_game_with_its_tasks(): void
+    {
+        $me = User::factory()->create();
+
+        $this->actingAs($me)->postJson(route('social.games.store'), [
+            'name' => '原神', 'template' => 'genshin',
+        ])->assertOk();
+
+        $game = $me->gameRoutines()->firstWhere('name', '原神');
+        $this->assertSame(5, $game->reset_hour, 'テンプレのリセット時刻が入る');
+        $this->assertCount(5, $game->tasks);
+
+        // 画面が壊れずに描画でき、課題名が埋め込まれている
+        $this->actingAs($me)->get(route('social.index'))
+            ->assertOk()
+            ->assertSee('デイリー依頼4つ');
+    }
+
+    public function test_push_subscription_is_stored_once_per_endpoint_and_is_user_scoped(): void
+    {
+        config(['services.webpush.public_key' => 'pub', 'services.webpush.private_key' => 'priv']);
+
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+        $endpoint = 'https://fcm.googleapis.com/fcm/send/abc123';
+        $payload = ['endpoint' => $endpoint, 'keys' => ['p256dh' => 'p256', 'auth' => 'a']];
+
+        // 他人が同じ端末を消そうとしても消えない
+        $this->actingAs($other)->postJson(route('push.subscribe'), $payload)->assertOk();
+        $this->actingAs($me)->postJson(route('push.unsubscribe'), ['endpoint' => $endpoint])->assertOk();
+        $this->assertDatabaseCount('push_subscriptions', 1);
+
+        // 同じ端末から再購読しても行は増えない（所有者は付け替わる）
+        $this->actingAs($me)->postJson(route('push.subscribe'), $payload)->assertOk();
+        $this->actingAs($me)->postJson(route('push.subscribe'), $payload)->assertOk();
+        $this->assertDatabaseCount('push_subscriptions', 1);
+        $this->assertSame(1, $me->pushSubscriptions()->count());
+    }
+
+    public function test_reminder_fires_only_in_the_window_and_only_when_something_is_left(): void
+    {
+        $user = User::factory()->create(['routine_notify' => true, 'routine_notify_before' => 2]);
+        $game = $user->gameRoutines()->create(['name' => 'FGO', 'reset_hour' => 5]);
+        $task = $game->tasks()->create(['title' => 'マスターミッション', 'cadence' => 'daily']);
+
+        // リセット4時間前 → まだ鳴らさない
+        Carbon::setTestNow('2026-09-15 01:00:00');
+        $this->mockPush()->shouldNotReceive('sendToUser');
+        $this->artisan('routines:remind')->assertSuccessful();
+
+        // リセット2時間前 → 未完了があるので鳴る
+        Carbon::setTestNow('2026-09-15 03:00:00');
+        $captured = null;
+        $this->mockPush()->shouldReceive('sendToUser')->once()
+            ->with(\Mockery::type(User::class), \Mockery::capture($captured))
+            ->andReturn(1);
+        $this->artisan('routines:remind')->assertSuccessful();
+        $this->assertStringContainsString('FGO: 日課1', $captured['body']);
+
+        // 済ませてあれば同じ時間でも黙る
+        \App\Models\RoutineCompletion::create([
+            'routine_task_id' => $task->id,
+            'user_id' => $user->id,
+            'period_key' => $game->periodKey('daily'),
+        ]);
+        $this->mockPush()->shouldNotReceive('sendToUser');
+        $this->artisan('routines:remind')->assertSuccessful();
+
+        Carbon::setTestNow();
+    }
+
+    /** 送信部分だけ差し替えたい（実際にPush業者へ飛ばさない） */
+    private function mockPush(): \Mockery\MockInterface
+    {
+        $mock = \Mockery::mock(\App\Services\PushService::class);
+        $mock->shouldReceive('isConfigured')->andReturnTrue();
+        $this->app->instance(\App\Services\PushService::class, $mock);
+
+        return $mock;
+    }
 }

@@ -21,16 +21,16 @@ class RoutineTask extends Model
         return $this->hasMany(RoutineCompletion::class);
     }
 
-    /** 現在の期間キー（日課=日付 / 週課=ISO週 / 月課=年月） */
-    public function currentPeriodKey(): string
+    /** 現在の期間キー。判定はゲーム側のリセット設定に従う。 */
+    public function currentPeriodKey(?Carbon $now = null): string
     {
-        $now = Carbon::now();
+        return $this->routine->periodKey($this->cadence, $now);
+    }
 
-        return match ($this->cadence) {
-            'weekly' => $now->isoFormat('GGGG-[W]WW'),
-            'monthly' => $now->format('Y-m'),
-            default => $now->format('Y-m-d'),
-        };
+    /** 次のリセット時刻。 */
+    public function nextResetAt(?Carbon $now = null): Carbon
+    {
+        return $this->routine->nextResetAt($this->cadence, $now);
     }
 
     public function cadenceLabel(): string
