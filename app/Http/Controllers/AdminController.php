@@ -9,12 +9,13 @@ use App\Models\SetupTask;
 use App\Models\Survey;
 use App\Models\User;
 use App\Services\ServerStats;
+use App\Services\SetupStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 
 class AdminController extends Controller
 {
-    public function index(ServerStats $serverStats)
+    public function index(ServerStats $serverStats, SetupStatus $setupStatus)
     {
         $tasks = SetupTask::orderBy('sort_order')->get()->groupBy('category');
         $taskDone = SetupTask::where('done', true)->count();
@@ -34,7 +35,11 @@ class AdminController extends Controller
             'game_minutes' => (int) GameSession::sum('minutes'),
         ];
 
-        return view('admin.index', compact('tasks', 'taskDone', 'taskTotal', 'stats', 'server'));
+        // 実物を見て判定するセットアップ状況（手動チェックリストとは別物）
+        $setup = $setupStatus->all();
+        $setupPending = $setupStatus->pendingCount($setup);
+
+        return view('admin.index', compact('tasks', 'taskDone', 'taskTotal', 'stats', 'server', 'setup', 'setupPending'));
     }
 
     public function toggleTask(SetupTask $task)

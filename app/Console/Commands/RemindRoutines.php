@@ -6,8 +6,10 @@ use App\Models\GameRoutine;
 use App\Models\RoutineCompletion;
 use App\Models\User;
 use App\Services\PushService;
+use App\Services\SetupStatus;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\File;
 
 /**
  * ソシャゲ日課のリマインド。cron から毎時0分に叩く想定。
@@ -73,10 +75,24 @@ class RemindRoutines extends Command
         }
 
         if (! $this->option('dry-run')) {
+            $this->stamp($now, $sentTotal);
             $this->info("送信完了: {$sentTotal}件");
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * 最終実行を1ファイルに記録する（管理画面の「セットアップ状況」がこれを見て
+     * cron が生きているか判定する）。毎時1回・数十バイトの上書きなので、
+     * SDへの負担はセッションやログに比べれば誤差の範囲。
+     */
+    private function stamp(Carbon $now, int $sent): void
+    {
+        File::put(
+            storage_path('app/'.SetupStatus::REMIND_STAMP),
+            json_encode(['at' => $now->toIso8601String(), 'sent' => $sent], JSON_UNESCAPED_UNICODE)
+        );
     }
 
     /**

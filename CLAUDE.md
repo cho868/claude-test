@@ -26,7 +26,7 @@
 | DB | **SQLite**（単一ファイル。`database/database.sqlite`） |
 | CSS | **Tailwind CSS Play CDN**（`?plugins=typography`） |
 | JS | **Alpine.js 3 CDN**／必要なライブラリは都度 CDN |
-| テスト | PHPUnit — `php artisan test`（**現在 38 tests / 全passing**） |
+| テスト | PHPUnit — `php artisan test`（**現在 39 tests / 全passing**） |
 | Lint | `./vendor/bin/pint` |
 
 ### ⚠️ ビルドステップは無い
@@ -77,6 +77,10 @@ SDの唯一の弱点は**書き込み寿命**。これが判断の軸で、こ�
 **「実行時刻そのもの」を重複送信よけに使い、送信履歴を保存しない**＝SD書き込みゼロ。
 `schedule:run`（毎分PHP起動）はラズパイには重いので**入れていない**。cronに直接1行だけ。
 LINEは無料枠が月200通しかなく、緊急通知の枠を食うので**日課通知には使わない**。
+
+唯一の例外: `storage/app/routines-remind.json`（最終実行時刻・約60バイト）だけは毎時上書きする。
+**cronの登録忘れに気づけないほうが害が大きい**という判断。1日24回・約1.5KBなので
+セッションやログに比べれば誤差。管理画面の「セットアップ状況」がこれを読んで生死を判定する。
 
 ### ⑥ XSS対策
 ユーザーが書いた Markdown は必ず以下で描画する（生HTMLを除去）。
@@ -185,6 +189,13 @@ cd /var/www/portal && sudo bash deploy/deploy-app.sh main
   `database/migrations/2026_09_14_100002_add_reset_rules_and_push_to_routines.php`
 - 依存追加: `minishlink/web-push`（ext-gmp 不要。VAPID署名と本文暗号化は openssl で通る）
 
+**🩺 セットアップ状況（`/admin`）を追加**
+- `App\Services\SetupStatus` が**サーバーの実物を見て**判定する（手動の `SetupTask` チェックリストとは別物）。
+  VAPID鍵 / cronの最終実行 / 購読端末数 / PWAのファイル / 動いているコミット / 未適用マイグレーション /
+  APP_DEBUG・APP_URL・招待コード。未完了の項目には**次に打つコマンド**を出す。
+- 判定は読み取りのみで状態を保存しない。コミットは `.git` を直接読む（`git` を叩かないので権限で転ばない）。
+- 数日空けても「開けば分かる」状態にするのが目的。ラズパイで作業→リロードで緑になるかを確認できる。
+
 ### 「PWAを別に作るか」の判断（済み・蒸し返さない）
 ポータルとは別に静的PWA（cho-feedly方式）を建てる案は**採らなかった**。理由:
 1. **定時通知はサーバーが要る**（上記のとおり静的PWA単体では原理的に無理）。別に建てても結局
@@ -196,6 +207,7 @@ cd /var/www/portal && sudo bash deploy/deploy-app.sh main
 → **ポータル自体をPWA化する**という形で決着。タスク管理も同じ方針で足す（別機能として `/tasks` を後日）。
 
 ### ラズパイ側で未確認のもの（本人が実施する）
+> 現状は **`/admin` の「🩺 セットアップ状況」**で自動判定される。ここの一覧は概要。
 - [ ] 最新コードのデプロイ（`deploy-app.sh main`）— ソシャゲ/Pushのマイグレーションを含む
 - [ ] `php artisan push:vapid` → `.env` に鍵を設定 → `config:cache`
 - [ ] cron に `0 * * * * cd /var/www/portal && php artisan routines:remind`（RASPBERRYPI.md 9.5）

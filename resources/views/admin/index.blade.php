@@ -55,6 +55,62 @@
     @endforeach
 </div>
 
+{{-- セットアップ状況（実物を見て自動判定。手動チェックリストとは別物） --}}
+@php
+    $badge = [
+        'ok'   => ['✅', 'bg-emerald-50 text-emerald-700'],
+        'warn' => ['⚠️', 'bg-amber-50 text-amber-700'],
+        'ng'   => ['❌', 'bg-rose-50 text-rose-700'],
+        'info' => ['ℹ️', 'bg-slate-50 text-slate-500'],
+    ];
+@endphp
+<div class="mb-6 rounded-2xl bg-white p-6 shadow-sm" x-data="{ open: {{ $setupPending > 0 ? 'true' : 'false' }} }">
+    <button type="button" @click="open = !open" class="flex w-full items-center justify-between gap-3 text-left">
+        <div class="min-w-0">
+            <h3 class="text-lg font-bold">🩺 セットアップ状況</h3>
+            <p class="text-xs text-slate-400">サーバーの実物を見て判定</p>
+        </div>
+        <span class="flex shrink-0 items-center gap-2">
+            @if ($setupPending > 0)
+                <span class="whitespace-nowrap rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700">
+                    要対応 {{ $setupPending }}件
+                </span>
+            @else
+                <span class="whitespace-nowrap rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700">
+                    すべて完了
+                </span>
+            @endif
+            <span class="text-slate-400" x-text="open ? '▾' : '▸'"></span>
+        </span>
+    </button>
+
+    <div x-show="open" x-cloak class="mt-4 space-y-5">
+        @foreach ($setup as $group)
+            <div>
+                <p class="mb-2 text-sm font-bold text-slate-500">{{ $group['title'] }}</p>
+                <div class="space-y-2">
+                    @foreach ($group['items'] as $item)
+                        @php [$icon, $tone] = $badge[$item['state']] ?? $badge['info']; @endphp
+                        <div class="rounded-xl border border-slate-100 p-3">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="rounded-full px-2 py-0.5 text-xs font-bold {{ $tone }}">{{ $icon }}</span>
+                                <span class="text-sm font-semibold">{{ $item['label'] }}</span>
+                            </div>
+                            <p class="mt-1 text-sm text-slate-500">{{ $item['detail'] }}</p>
+                            @if (! empty($item['hint']))
+                                <pre class="mt-2 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs leading-relaxed text-slate-100">{{ $item['hint'] }}</pre>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endforeach
+        <p class="text-xs text-slate-400">
+            ※ 開くたびに判定し直します。ラズパイで作業したあとリロードすれば、緑に変わったかどうかがそのまま分かります。
+        </p>
+    </div>
+</div>
+
 {{-- セットアップ / セキュリティ チェックリスト --}}
 <div class="rounded-2xl bg-white p-6 shadow-sm">
     <div class="mb-3 flex items-center justify-between">

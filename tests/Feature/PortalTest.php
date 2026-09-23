@@ -938,4 +938,52 @@ class PortalTest extends TestCase
 
         return $mock;
     }
+
+    public function test_setup_status_detects_what_is_still_missing(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $status = app(\App\Services\SetupStatus::class);
+        $stamp = storage_path('app/'.\App\Services\SetupStatus::REMIND_STAMP);
+        @unlink($stamp);
+
+        // 鍵もcronも購読も無い状態 → ちゃんと「未設定」と言う
+        config(['services.webpush.public_key' => null, 'services.webpush.private_key' => null]);
+        $items = collect($status->all())->flatMap(fn ($g) => $g['items'])->keyBy('label');
+
+        $this->assertSame('ng', $items['VAPID鍵']['state']);
+        $this->assertStringContainsString('push:vapid', $items['VAPID鍵']['hint']);
+        $this->assertSame('ng', $items['定期実行（cron）']['state']);
+        $this->assertSame('warn', $items['通知を受け取る端末']['state']);
+        // マイグレーションは全部当たっている（テストDBは最新）
+        $this->assertSame('ok', $items['マイグレーション']['state']);
+
+        // 鍵を入れ、cronが動き、端末が1台登録された状態 → 緑になる
+        config(['services.webpush.public_key' => 'pub', 'services.webpush.private_key' => 'priv']);
+        file_put_contents($stamp, json_encode(['at' => now()->toIso8601String(), 'sent' => 1]));
+        \App\Models\PushSubscription::create([
+            'user_id' => $admin->id,
+            'endpoint' => 'https://example.test/ep',
+            'endpoint_hash' => \App\Models\PushSubscription::hashFor('https://example.test/ep'),
+            'p256dh' => 'p', 'auth' => 'a',
+        ]);
+
+        $groups = $status->all();
+        $items = collect($groups)->flatMap(fn ($g) => $g['items'])->keyBy('label');
+        $this->assertSame('ok', $items['VAPID鍵']['state']);
+        $this->assertSame('ok', $items['定期実行（cron）']['state']);
+        $this->assertSame('ok', $items['通知を受け取る端末']['state']);
+
+        // cronが90分以上動いていなければ警告に変わる
+        file_put_contents($stamp, json_encode(['at' => now()->subHours(5)->toIso8601String(), 'sent' => 0]));
+        $items = collect($status->all())->flatMap(fn ($g) => $g['items'])->keyBy('label');
+        $this->assertSame('warn', $items['定期実行（cron）']['state']);
+
+        // 管理画面に出る。管理者以外は見られない
+        $this->actingAs(User::factory()->create())->get(route('admin.index'))->assertForbidden();
+        $this->actingAs($admin)->get(route('admin.index'))
+            ->assertOk()
+            ->assertSee('セットアップ状況');
+
+        @unlink($stamp);
+    }
 }
