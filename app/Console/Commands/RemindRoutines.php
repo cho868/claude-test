@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\GameRoutine;
 use App\Models\RoutineCompletion;
+use App\Models\Task;
 use App\Models\User;
 use App\Services\PushService;
 use App\Services\SetupStatus;
@@ -27,7 +28,7 @@ class RemindRoutines extends Command
                             {--force : 残り時間に関係なく未完了があれば送る（動作確認用）}
                             {--user= : 対象を1人に絞る（ログインID）}';
 
-    protected $description = 'ソシャゲの日課/週課/月課で未完了があればリセット前に通知する';
+    protected $description = 'ソシャゲの日課/週課/月課で未完了があればリセット前に、タスクは期限の日の指定時刻に通知する';
 
     public function handle(PushService $push): int
     {
@@ -74,12 +75,68 @@ class RemindRoutines extends Command
             $this->line("[{$user->username}] {$sent}端末に送信: {$payload['body']}");
         }
 
+        $sentTotal += $this->remindTasks($push, $now);
+
         if (! $this->option('dry-run')) {
             $this->stamp($now, $sentTotal);
             $this->info("送信完了: {$sentTotal}件");
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * タスクの期限通知。本人が決めた時刻（task_notify_hour）の回にだけ、
+     * 今日が期限のもの・期限切れのものが残っていれば1回鳴らす。
+     * 日課と同じく「実行時刻」で重複を避けるので送信履歴は残さない。
+     */
+    private function remindTasks(PushService $push, Carbon $now): int
+    {
+        $users = User::query()
+            ->when(! $this->option('force'), fn ($q) => $q->where('task_notify_hour', $now->hour))
+            ->when($this->option('force'), fn ($q) => $q->whereNotNull('task_notify_hour'))
+            ->when($this->option('user'), fn ($q, $name) => $q->where('username', $name))
+            ->whereHas('tasks', fn ($q) => $q->whereNull('done_at')->whereDate('due_date', '<=', $now->toDateString()))
+            ->get();
+
+        $sent = 0;
+
+        foreach ($users as $user) {
+            $tasks = Task::where('user_id', $user->id)
+                ->whereNull('done_at')
+                ->whereDate('due_date', '<=', $now->toDateString())
+                ->ordered()->get();
+
+            $today = $tasks->filter(fn (Task $t) => $t->due_date->isSameDay($now));
+            $overdue = $tasks->count() - $today->count();
+
+            $parts = $today->take(3)->pluck('title')->all();
+            if ($today->count() > 3) {
+                $parts[] = '他'.($today->count() - 3).'件';
+            }
+            if ($overdue > 0) {
+                $parts[] = "期限切れ{$overdue}件";
+            }
+
+            $payload = [
+                'title' => $today->isNotEmpty() ? "✅ 今日が期限のタスク {$today->count()}件" : '🔥 期限切れのタスクがあります',
+                'body' => implode(' / ', $parts),
+                'url' => route('tasks.index'),
+                'tag' => 'task-remind',
+            ];
+
+            if ($this->option('dry-run')) {
+                $this->line("[{$user->username}] {$payload['title']} — {$payload['body']}");
+
+                continue;
+            }
+
+            $count = $push->sendToUser($user, $payload);
+            $sent += $count;
+            $this->line("[{$user->username}] タスク {$count}端末に送信: {$payload['body']}");
+        }
+
+        return $sent;
     }
 
     /**

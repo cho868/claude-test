@@ -43,7 +43,16 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        // 自分のタスクで1週間以内に期限が来るもの（期限切れを含む）
+        $dueTasks = $user->tasks()
+            ->whereNull('done_at')
+            ->whereDate('due_date', '<=', Carbon::today()->addDays(7)->toDateString())
+            ->ordered()
+            ->take(5)
+            ->get();
+
         return view('dashboard', [
+            'dueTasks' => $dueTasks,
             'user' => $user,
             'ranking' => $ranking,
             'currentTitle' => $currentTitle,

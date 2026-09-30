@@ -986,4 +986,117 @@ class PortalTest extends TestCase
 
         @unlink($stamp);
     }
+
+    public function test_tasks_are_private_by_default_and_toggle_is_idempotent(): void
+    {
+        $me = User::factory()->create();
+        $other = User::factory()->create(['is_admin' => true]); // 管理者でも他人の非公開は見えない
+
+        $this->actingAs($me)->post(route('tasks.store'), [
+            'title' => 'ナイショの手続きXYZ',
+            'due_date' => today()->toDateString(),
+            'list' => '手続き',
+            'visibility' => 'private',
+        ])->assertRedirect();
+        $task = \App\Models\Task::firstWhere('user_id', $me->id);
+        $this->assertSame('today', $task->bucket());
+
+        // 他人は見えない・触れない（先に済ませる）
+        $this->actingAs($other)->get(route('tasks.index', ['tab' => 'shared']))->assertOk()->assertDontSee('ナイショの手続きXYZ');
+        $this->actingAs($other)->postJson(route('tasks.toggle', $task), ['done' => true])->assertForbidden();
+        $this->actingAs($other)->put(route('tasks.update', $task), ['title' => '乗っ取り', 'visibility' => 'members'])->assertForbidden();
+        $this->actingAs($other)->delete(route('tasks.destroy', $task))->assertForbidden();
+
+        // 共有すると「みんなの共有」に出る（それでも編集は本人だけ）
+        $task->update(['visibility' => 'members']);
+        $this->actingAs($other)->get(route('tasks.index', ['tab' => 'shared']))->assertOk()->assertSee('ナイショの手続きXYZ');
+        $this->actingAs($other)->postJson(route('tasks.toggle', $task), ['done' => true])->assertForbidden();
+
+        // done=true を2回送っても完了のまま（楽観的UIの再送に耐える）
+        $this->actingAs($me)->postJson(route('tasks.toggle', $task), ['done' => true])->assertOk()->assertJson(['done' => true]);
+        $firstDoneAt = $task->refresh()->done_at;
+        $this->actingAs($me)->postJson(route('tasks.toggle', $task), ['done' => true])->assertOk()->assertJson(['done' => true]);
+        $this->assertEquals($firstDoneAt, $task->refresh()->done_at);
+        $this->actingAs($me)->postJson(route('tasks.toggle', $task), ['done' => false])->assertOk();
+        $this->assertNull($task->refresh()->done_at);
+
+        // 自分の一覧・ダッシュボードに出る
+        $this->actingAs($me)->get(route('tasks.index'))->assertOk()->assertSee('ナイショの手続きXYZ');
+        $this->actingAs($me)->get(route('dashboard'))->assertOk()->assertSee('期限が近いタスク');
+
+        // 完了済みの片付けは自分の分だけ消える
+        $theirs = $other->tasks()->create(['title' => '他人の完了済み', 'done_at' => now()]);
+        $task->update(['done_at' => now()]);
+        $this->actingAs($me)->delete(route('tasks.clear-done'))->assertRedirect();
+        $this->assertModelMissing($task);
+        $this->assertModelExists($theirs);
+    }
+
+    public function test_task_bulk_paste_reads_dates_headings_and_tables(): void
+    {
+        $me = User::factory()->create();
+        Carbon::setTestNow('2026-09-30 10:00:00');
+
+        $items = \App\Models\Task::parseBulk(implode("\n", [
+            '# Olive',
+            '| 10/6（火）まで | 口座に**10万円を一度に**入金 |',
+            '- [ ] 1/10 申請書を返送',      // 年なし・過去の月 → 来年
+            '2026/11/7 残りを返す',
+            '# 年末調整',
+            '源泉徴収票を用意',
+        ]));
+
+        $this->assertSame([
+            ['title' => '口座に10万円を一度に入金', 'due_date' => '2026-10-06', 'list' => 'Olive'],
+            ['title' => '申請書を返送', 'due_date' => '2027-01-10', 'list' => 'Olive'],
+            ['title' => '残りを返す', 'due_date' => '2026-11-07', 'list' => 'Olive'],
+            ['title' => '源泉徴収票を用意', 'due_date' => null, 'list' => '年末調整'],
+        ], $items);
+
+        $this->actingAs($me)->post(route('tasks.bulk'), [
+            'text' => "10/2 銀行に電話\n保険の証明書",
+            'list' => '手続き',
+            'visibility' => 'private',
+        ])->assertRedirect(route('tasks.index'));
+        $this->assertSame(2, $me->tasks()->where('list', '手続き')->where('visibility', 'private')->count());
+
+        Carbon::setTestNow();
+    }
+
+    public function test_task_reminder_fires_only_at_the_chosen_hour(): void
+    {
+        $user = User::factory()->create(['task_notify_hour' => 8]);
+        $user->tasks()->create(['title' => 'Oliveに入金', 'due_date' => '2026-10-06']);
+        $user->tasks()->create(['title' => '先の話', 'due_date' => '2026-12-01']);
+
+        // 7時は鳴らさない
+        Carbon::setTestNow('2026-10-06 07:00:00');
+        $this->mockPush()->shouldNotReceive('sendToUser');
+        $this->artisan('routines:remind')->assertSuccessful();
+
+        // 8時に「今日が期限」を1回鳴らす（先の予定は入らない）
+        Carbon::setTestNow('2026-10-06 08:00:00');
+        $captured = null;
+        $this->mockPush()->shouldReceive('sendToUser')->once()
+            ->with(\Mockery::type(User::class), \Mockery::capture($captured))
+            ->andReturn(1);
+        $this->artisan('routines:remind')->assertSuccessful();
+        $this->assertStringContainsString('Oliveに入金', $captured['body']);
+        $this->assertStringNotContainsString('先の話', $captured['body']);
+
+        // 翌日も残っていれば「期限切れ」として鳴る。通知オフなら黙る
+        Carbon::setTestNow('2026-10-07 08:00:00');
+        $this->mockPush()->shouldReceive('sendToUser')->once()
+            ->with(\Mockery::type(User::class), \Mockery::capture($captured))
+            ->andReturn(1);
+        $this->artisan('routines:remind')->assertSuccessful();
+        $this->assertStringContainsString('期限切れ1件', $captured['body']);
+
+        $user->update(['task_notify_hour' => null]);
+        $this->mockPush()->shouldNotReceive('sendToUser');
+        $this->artisan('routines:remind')->assertSuccessful();
+
+        Carbon::setTestNow();
+        @unlink(storage_path('app/'.\App\Services\SetupStatus::REMIND_STAMP));
+    }
 }

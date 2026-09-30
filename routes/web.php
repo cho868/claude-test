@@ -27,6 +27,7 @@ use App\Http\Controllers\PushController;
 use App\Http\Controllers\ScheduleEventController;
 use App\Http\Controllers\SleepRecordController;
 use App\Http\Controllers\SurveyController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TierListController;
 use App\Http\Controllers\ToolsController;
 use App\Http\Controllers\TournamentController;
@@ -161,6 +162,17 @@ Route::middleware('auth')->group(function () {
     Route::patch('social-games/{game}', [SocialGameController::class, 'updateGame'])->name('social.games.update');
     Route::delete('social-games/{game}', [SocialGameController::class, 'destroyGame'])->name('social.games.destroy');
     Route::post('social-games/{game}/tasks', [SocialGameController::class, 'storeTask'])->name('social.tasks.store');
+
+    // タスク(ソシャゲ以外のToDo。既定は自分のみ・共有はオプトイン)
+    // ※ 固定パスは {task} より先に置く
+    Route::get('tasks', [TaskController::class, 'index'])->name('tasks.index');
+    Route::post('tasks', [TaskController::class, 'store'])->name('tasks.store');
+    Route::post('tasks/bulk', [TaskController::class, 'bulk'])->name('tasks.bulk');
+    Route::post('tasks/settings', [TaskController::class, 'settings'])->name('tasks.settings');
+    Route::delete('tasks/done', [TaskController::class, 'clearDone'])->name('tasks.clear-done');
+    Route::post('tasks/{task}/toggle', [TaskController::class, 'toggle'])->name('tasks.toggle');
+    Route::put('tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+    Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
     // Web Push の購読管理(ソシャゲ日課のリマインドに使う)
     Route::post('push/subscribe', [PushController::class, 'subscribe'])->name('push.subscribe');

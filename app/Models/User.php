@@ -32,6 +32,7 @@ class User extends Authenticatable
         'weekly_exercise_goal',
         'routine_notify',
         'routine_notify_before',
+        'task_notify_hour',
     ];
 
     protected $hidden = [
@@ -52,6 +53,7 @@ class User extends Authenticatable
             'birth_day' => 'integer',
             'routine_notify' => 'boolean',
             'routine_notify_before' => 'integer',
+            'task_notify_hour' => 'integer',
         ];
     }
 
@@ -171,6 +173,11 @@ class User extends Authenticatable
     public function gameRoutines(): HasMany
     {
         return $this->hasMany(GameRoutine::class);
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
     }
 
     public function links(): HasMany

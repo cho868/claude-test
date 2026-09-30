@@ -37,6 +37,21 @@
             </div>
         </div>
 
+        {{-- 期限が近い自分のタスク（無ければ出さない） --}}
+        @if ($dueTasks->isNotEmpty())
+            <a href="{{ route('tasks.index') }}" class="block rounded-2xl bg-white p-5 shadow-sm hover:ring-1 hover:ring-slate-200">
+                <h3 class="mb-2 font-bold">✅ 期限が近いタスク</h3>
+                <ul class="space-y-1 text-sm">
+                    @foreach ($dueTasks as $task)
+                        <li class="flex justify-between gap-3">
+                            <span class="truncate">{{ $task->title }}</span>
+                            <span class="shrink-0 text-xs {{ in_array($task->bucket(), ['overdue', 'today']) ? 'font-semibold text-rose-600' : 'text-slate-400' }}">{{ $task->dueLabel() }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </a>
+        @endif
+
         {{-- ツール一覧（カテゴリ別） --}}
         <div>
             <h3 class="mb-3 text-lg font-bold">🧰 便利ツール</h3>
@@ -69,6 +84,7 @@
                         ['tools.lottery', '🎲', 'くじ引き', 'ランダム抽選'],
                     ],
                     '👥 みんな' => [
+                        ['tasks.index', '✅', 'タスク', '期限つきToDo・朝に通知'],
                         ['diaries.index', '📔', '日記', 'Markdownで記録・共有'],
                         ['surveys.index', '🗳️', 'アンケート', 'みんなで投票'],
                         ['schedule.index', '📅', '予定', '予定と出欠管理'],

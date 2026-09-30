@@ -26,7 +26,7 @@
 | DB | **SQLite**（単一ファイル。`database/database.sqlite`） |
 | CSS | **Tailwind CSS Play CDN**（`?plugins=typography`） |
 | JS | **Alpine.js 3 CDN**／必要なライブラリは都度 CDN |
-| テスト | PHPUnit — `php artisan test`（**現在 39 tests / 全passing**） |
+| テスト | PHPUnit — `php artisan test`（**現在 42 tests / 全passing**） |
 | Lint | `./vendor/bin/pint` |
 
 ### ⚠️ ビルドステップは無い
@@ -170,9 +170,21 @@ cd /var/www/portal && sudo bash deploy/deploy-app.sh main
 
 ---
 
-## 6. 直近の状態（2026-09-15）
+## 6. 直近の状態（2026-09-30）
 
 ### 最後にやったこと
+**✅ タスク管理（`/tasks`）を追加**（下の「PWAを別に作るか」の方針どおり、ポータルの1機能として）
+- `tasks` テーブル1枚。完了は `done_at` を入れるだけ（履歴テーブルなし）。既定は `private`、
+  `Task::canBeViewedBy()` に **admin バイパスなし**（日記と同じ扱い。お金・手続きの話が入るため）。
+- **まとめて貼り付け**: `Task::parseBulk()`。行頭の日付が期限、`# 見出し` がリスト名。
+  年なしの日付が2か月以上前なら来年扱い（9月に書いた `1/10` → 翌年1/10）。表・箇条書き・`**` も剥がす。
+- **期限通知**は `routines:remind`（既存の毎時cron）に相乗り。`users.task_notify_hour`（既定8時・null=オフ）の回だけ
+  「今日が期限 + 期限切れ件数」を1回送る。送信履歴は保存しない（⑤の原則どおり）。
+- 端末の購読UIはソシャゲ日課の設定タブにあるものを共通で使う（タスク画面からはリンクだけ）。
+- ⚠️ 本人の個人的なタスク（Olive/ふるさと納税/年末調整）は**リポジトリに入れていない**。
+  本人が画面の「まとめて貼り付け」から入れる運用。
+- マイグレーション: `2026_09_30_100001_create_tasks_table.php`（ラズパイで未適用）
+
 **📋 ソシャゲ日課の作り直し + PWA化 + Web Push 通知**
 - **リセット時刻をゲーム単位で設定**（日課の時刻 / 週課の曜日 / 月課の日）。
   判定は全部 `GameRoutine::periodStart()` 起点。`RoutineTask::currentPeriodKey()` はゲーム側に委譲するだけ。
@@ -218,7 +230,7 @@ cd /var/www/portal && sudo bash deploy/deploy-app.sh main
 - [ ] （任意）Chromium — Webページ→PDF/画像ツール用。変換時に300〜500MB使う
 
 ### やりたいことリスト（未着手）
-- **タスク管理（`/tasks`）** — ソシャゲ以外のToDo。別機能として分ける方針で確定済み
+- タスクの繰り返し（毎月◯日など）— 必要になったら。今は単発のみ
 - ソシャゲ日課のオフライン対応（SWでチェックをIndexedDBに貯めて復帰時に同期）
 - スイスドロー形式のトーナメント
 - 身内同士の対戦成績表（総当たりマトリクス）
