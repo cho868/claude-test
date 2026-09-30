@@ -116,24 +116,62 @@
             </form>
         </details>
 
-        <form method="POST" action="{{ route('tasks.settings') }}" class="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
-            @csrf
-            <h3 class="font-bold">🔔 期限の通知</h3>
-            <p class="text-xs text-slate-500">期限の日（と期限切れが残っている日）に、指定した時刻に1回だけ Push 通知します。</p>
-            <div class="flex items-center gap-2">
-                <select name="task_notify_hour" class="rounded-lg border-slate-300 text-sm">
-                    <option value="" @selected(auth()->user()->task_notify_hour === null)>通知しない</option>
-                    @foreach (range(5, 22) as $h)
-                        <option value="{{ $h }}" @selected(auth()->user()->task_notify_hour === $h)>毎朝 {{ $h }}:00</option>
-                    @endforeach
-                </select>
-                <x-btn type="submit" variant="secondary">保存</x-btn>
-            </div>
-            <p class="text-xs text-slate-400">
-                通知を受け取る端末の登録は <a href="{{ route('social.index') }}" class="underline">ソシャゲ日課</a> の「設定」タブで行います（共通）。
-                iPhone は「ホーム画面に追加」してから開いてください。
+        @php($me = auth()->user())
+        <div class="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
+            <form method="POST" action="{{ route('tasks.settings') }}" class="space-y-3">
+                @csrf
+                <h3 class="font-bold">🔔 通知</h3>
+                <div class="flex items-center gap-2">
+                    <select name="task_notify_hour" class="rounded-lg border-slate-300 text-sm">
+                        <option value="" @selected($me->task_notify_hour === null)>通知しない</option>
+                        @foreach (range(5, 22) as $h)
+                            <option value="{{ $h }}" @selected($me->task_notify_hour === $h)>毎日 {{ $h }}:00</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="space-y-1.5 border-t border-slate-100 pt-3">
+                    <p class="text-sm font-semibold">💬 Discord に毎日まとめを送る</p>
+                    <p class="text-xs text-slate-500">
+                        未完了がある限り、毎日上の時刻に「期限切れ・今日・1週間以内」の一覧を送ります。
+                        タスクは非公開のことが多いので、<b>自分だけのサーバー/チャンネル</b>の Webhook を使ってください。
+                    </p>
+                    @if ($me->discord_webhook_url)
+                        <p class="text-xs text-emerald-700">✅ 登録済み（URLは安全のため表示しません。変えるときだけ貼り直す）</p>
+                    @endif
+                    <input name="discord_webhook_url" type="url" maxlength="300" autocomplete="off"
+                           placeholder="https://discord.com/api/webhooks/..."
+                           class="w-full rounded-lg border-slate-300 text-xs">
+                    @if ($me->discord_webhook_url)
+                        <label class="flex items-center gap-1.5 text-xs text-slate-500">
+                            <input type="checkbox" name="discord_clear" value="1" class="rounded border-slate-300"> Discord 通知をやめる（登録を消す）
+                        </label>
+                    @endif
+                    <details class="text-xs text-slate-500">
+                        <summary class="cursor-pointer">Webhook URL の作り方</summary>
+                        <ol class="ml-4 mt-1 list-decimal space-y-0.5">
+                            <li>Discord で自分用のサーバー（またはチャンネル）を用意</li>
+                            <li>チャンネルの ⚙️ 編集 → 連携サービス → ウェブフック → 新しいウェブフック</li>
+                            <li>「ウェブフックURLをコピー」して上の欄に貼り付けて保存</li>
+                        </ol>
+                    </details>
+                </div>
+
+                <div class="flex justify-end"><x-btn type="submit" variant="secondary">保存</x-btn></div>
+            </form>
+
+            @if ($me->discord_webhook_url)
+                <form method="POST" action="{{ route('tasks.discord-test') }}" class="text-right">
+                    @csrf
+                    <x-btn type="submit" variant="secondary">💬 Discord にテスト送信</x-btn>
+                </form>
+            @endif
+
+            <p class="border-t border-slate-100 pt-3 text-xs text-slate-400">
+                スマホの Push 通知は、今日が期限・期限切れがある日だけ鳴ります。端末の登録は
+                <a href="{{ route('social.index') }}" class="underline">ソシャゲ日課</a> の「設定」タブ（共通）。
             </p>
-        </form>
+        </div>
     </div>
 </div>
 

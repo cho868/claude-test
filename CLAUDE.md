@@ -26,7 +26,7 @@
 | DB | **SQLite**（単一ファイル。`database/database.sqlite`） |
 | CSS | **Tailwind CSS Play CDN**（`?plugins=typography`） |
 | JS | **Alpine.js 3 CDN**／必要なライブラリは都度 CDN |
-| テスト | PHPUnit — `php artisan test`（**現在 42 tests / 全passing**） |
+| テスト | PHPUnit — `php artisan test`（**現在 43 tests / 全passing**） |
 | Lint | `./vendor/bin/pint` |
 
 ### ⚠️ ビルドステップは無い
@@ -181,9 +181,15 @@ cd /var/www/portal && sudo bash deploy/deploy-app.sh main
 - **期限通知**は `routines:remind`（既存の毎時cron）に相乗り。`users.task_notify_hour`（既定8時・null=オフ）の回だけ
   「今日が期限 + 期限切れ件数」を1回送る。送信履歴は保存しない（⑤の原則どおり）。
 - 端末の購読UIはソシャゲ日課の設定タブにあるものを共通で使う（タスク画面からはリンクだけ）。
+- **Discord に毎日のまとめ**: `users.discord_webhook_url`（本人ごと・`encrypted` キャスト・`$hidden`・画面に再表示しない）。
+  同じ `task_notify_hour` の回に、未完了がある限り毎日送る（Push は期限当日/期限切れの日だけ）。
+  送信は `App\Services\DiscordWebhook`。宛先が固定なので SafeUrl ではなく
+  **ホストを discord.com の `/api/webhooks/` に正規表現で固定＋リダイレクト不追従**で SSRF を防いでいる（SafeUrl より厳しい）。
+  `allowed_mentions: parse []` で @everyone 等は鳴らさない。VAPID鍵が未設定でも Discord 分は送る。
+- **LINE は使わない**（⑤のとおり無料枠を緊急通知に残す）。本人から「毎日LINEかDiscordに」と頼まれて Discord を選んだ。
 - ⚠️ 本人の個人的なタスク（Olive/ふるさと納税/年末調整）は**リポジトリに入れていない**。
   本人が画面の「まとめて貼り付け」から入れる運用。
-- マイグレーション: `2026_09_30_100001_create_tasks_table.php`（ラズパイで未適用）
+- マイグレーション: `2026_09_30_100001_create_tasks_table.php` / `2026_09_30_100002_add_discord_webhook_to_users_table.php`
 
 **📋 ソシャゲ日課の作り直し + PWA化 + Web Push 通知**
 - **リセット時刻をゲーム単位で設定**（日課の時刻 / 週課の曜日 / 月課の日）。

@@ -33,11 +33,13 @@ class User extends Authenticatable
         'routine_notify',
         'routine_notify_before',
         'task_notify_hour',
+        'discord_webhook_url',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'discord_webhook_url',
     ];
 
     protected function casts(): array
@@ -54,6 +56,7 @@ class User extends Authenticatable
             'routine_notify' => 'boolean',
             'routine_notify_before' => 'integer',
             'task_notify_hour' => 'integer',
+            'discord_webhook_url' => 'encrypted',
         ];
     }
 

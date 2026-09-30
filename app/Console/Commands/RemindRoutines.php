@@ -6,10 +6,12 @@ use App\Models\GameRoutine;
 use App\Models\RoutineCompletion;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\DiscordWebhook;
 use App\Services\PushService;
 use App\Services\SetupStatus;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 
 /**
@@ -28,18 +30,33 @@ class RemindRoutines extends Command
                             {--force : 残り時間に関係なく未完了があれば送る（動作確認用）}
                             {--user= : 対象を1人に絞る（ログインID）}';
 
-    protected $description = 'ソシャゲの日課/週課/月課で未完了があればリセット前に、タスクは期限の日の指定時刻に通知する';
+    protected $description = 'ソシャゲの未完了をリセット前に、タスクは指定時刻に（Push/Discord）通知する';
 
-    public function handle(PushService $push): int
+    public function handle(PushService $push, DiscordWebhook $discord): int
     {
-        if (! $push->isConfigured() && ! $this->option('dry-run')) {
-            $this->error('VAPID鍵が未設定です。`php artisan push:vapid` で生成して .env に設定してください。');
+        $now = Carbon::now();
+        $sentTotal = 0;
 
-            return self::FAILURE;
+        // Push は VAPID 鍵が無いと送れないが、Discord のまとめはそれとは関係なく送る
+        if ($push->isConfigured() || $this->option('dry-run')) {
+            $sentTotal += $this->remindRoutines($push, $now);
+        } else {
+            $this->warn('VAPID鍵が未設定のため Push は送りません（`php artisan push:vapid` で生成して .env に設定）。');
         }
 
-        $now = Carbon::now();
+        $sentTotal += $this->remindTasks($push, $discord, $now);
 
+        if (! $this->option('dry-run')) {
+            $this->stamp($now, $sentTotal);
+            $this->info("送信完了: {$sentTotal}件");
+        }
+
+        return self::SUCCESS;
+    }
+
+    /** ソシャゲ日課: リセットのN時間前に未完了があれば Push */
+    private function remindRoutines(PushService $push, Carbon $now): int
+    {
         $users = User::query()
             ->where('routine_notify', true)
             ->when($this->option('user'), fn ($q, $name) => $q->where('username', $name))
@@ -75,68 +92,127 @@ class RemindRoutines extends Command
             $this->line("[{$user->username}] {$sent}端末に送信: {$payload['body']}");
         }
 
-        $sentTotal += $this->remindTasks($push, $now);
-
-        if (! $this->option('dry-run')) {
-            $this->stamp($now, $sentTotal);
-            $this->info("送信完了: {$sentTotal}件");
-        }
-
-        return self::SUCCESS;
+        return $sentTotal;
     }
 
     /**
-     * タスクの期限通知。本人が決めた時刻（task_notify_hour）の回にだけ、
-     * 今日が期限のもの・期限切れのものが残っていれば1回鳴らす。
+     * タスクの通知。本人が決めた時刻（task_notify_hour）の回にだけ動く。
+     *  - Push: 今日が期限のもの・期限切れのものが残っている日だけ1回鳴らす
+     *  - Discord: Webhook を登録していれば、未完了がある限り毎日まとめを送る
      * 日課と同じく「実行時刻」で重複を避けるので送信履歴は残さない。
      */
-    private function remindTasks(PushService $push, Carbon $now): int
+    private function remindTasks(PushService $push, DiscordWebhook $discord, Carbon $now): int
     {
         $users = User::query()
             ->when(! $this->option('force'), fn ($q) => $q->where('task_notify_hour', $now->hour))
             ->when($this->option('force'), fn ($q) => $q->whereNotNull('task_notify_hour'))
             ->when($this->option('user'), fn ($q, $name) => $q->where('username', $name))
-            ->whereHas('tasks', fn ($q) => $q->whereNull('done_at')->whereDate('due_date', '<=', $now->toDateString()))
+            ->whereHas('tasks', fn ($q) => $q->whereNull('done_at'))
             ->get();
 
         $sent = 0;
 
         foreach ($users as $user) {
-            $tasks = Task::where('user_id', $user->id)
-                ->whereNull('done_at')
-                ->whereDate('due_date', '<=', $now->toDateString())
-                ->ordered()->get();
+            $open = Task::where('user_id', $user->id)->whereNull('done_at')->ordered()->get();
 
-            $today = $tasks->filter(fn (Task $t) => $t->due_date->isSameDay($now));
-            $overdue = $tasks->count() - $today->count();
+            if ($user->discord_webhook_url) {
+                $content = self::taskDigest($open, $now);
 
-            $parts = $today->take(3)->pluck('title')->all();
-            if ($today->count() > 3) {
-                $parts[] = '他'.($today->count() - 3).'件';
-            }
-            if ($overdue > 0) {
-                $parts[] = "期限切れ{$overdue}件";
-            }
-
-            $payload = [
-                'title' => $today->isNotEmpty() ? "✅ 今日が期限のタスク {$today->count()}件" : '🔥 期限切れのタスクがあります',
-                'body' => implode(' / ', $parts),
-                'url' => route('tasks.index'),
-                'tag' => 'task-remind',
-            ];
-
-            if ($this->option('dry-run')) {
-                $this->line("[{$user->username}] {$payload['title']} — {$payload['body']}");
-
-                continue;
+                if ($this->option('dry-run')) {
+                    $this->line("[{$user->username}] Discord:\n{$content}");
+                } elseif ($discord->send($user->discord_webhook_url, $content)) {
+                    $sent++;
+                    $this->line("[{$user->username}] Discord にまとめを送信");
+                } else {
+                    $this->warn("[{$user->username}] Discord への送信に失敗（Webhook が消されていないか確認）");
+                }
             }
 
-            $count = $push->sendToUser($user, $payload);
-            $sent += $count;
-            $this->line("[{$user->username}] タスク {$count}端末に送信: {$payload['body']}");
+            if ($push->isConfigured() || $this->option('dry-run')) {
+                $sent += $this->pushDueTasks($push, $user, $open, $now);
+            }
         }
 
         return $sent;
+    }
+
+    /** 今日が期限・期限切れがあれば Push を1回（無ければ黙る） */
+    private function pushDueTasks(PushService $push, User $user, Collection $open, Carbon $now): int
+    {
+        $tasks = $open->filter(fn (Task $t) => $t->due_date && $t->due_date->lte($now->copy()->startOfDay()));
+
+        if ($tasks->isEmpty()) {
+            return 0;
+        }
+
+        $today = $tasks->filter(fn (Task $t) => $t->due_date->isSameDay($now));
+        $overdue = $tasks->count() - $today->count();
+
+        $parts = $today->take(3)->pluck('title')->all();
+        if ($today->count() > 3) {
+            $parts[] = '他'.($today->count() - 3).'件';
+        }
+        if ($overdue > 0) {
+            $parts[] = "期限切れ{$overdue}件";
+        }
+
+        $payload = [
+            'title' => $today->isNotEmpty() ? "✅ 今日が期限のタスク {$today->count()}件" : '🔥 期限切れのタスクがあります',
+            'body' => implode(' / ', $parts),
+            'url' => route('tasks.index'),
+            'tag' => 'task-remind',
+        ];
+
+        if ($this->option('dry-run')) {
+            $this->line("[{$user->username}] {$payload['title']} — {$payload['body']}");
+
+            return 0;
+        }
+
+        $count = $push->sendToUser($user, $payload);
+        $this->line("[{$user->username}] タスク {$count}端末に送信: {$payload['body']}");
+
+        return $count;
+    }
+
+    /**
+     * Discord に送る毎日のまとめ。期限切れ → 今日 → 1週間以内 を並べ、先の予定と期限なしは件数だけ。
+     *
+     * @param  Collection<int, Task>  $open  未完了タスク（期限順）
+     */
+    public static function taskDigest(Collection $open, Carbon $now): string
+    {
+        $today = $now->copy()->startOfDay();
+        $groups = $open->groupBy(fn (Task $t) => $t->bucket($today));
+
+        $lines = ['**✅ '.$now->isoFormat('M/D(ddd)').' のタスク**（残り'.$open->count().'件）'];
+
+        foreach (['overdue' => '🔥 期限切れ', 'today' => '📌 今日まで', 'week' => '📅 1週間以内'] as $key => $label) {
+            if (! $groups->has($key)) {
+                continue;
+            }
+            $lines[] = '';
+            $lines[] = "__{$label}__";
+            foreach ($groups[$key]->take(10) as $task) {
+                $list = $task->list ? "［{$task->list}］" : '';
+                $lines[] = "・{$task->title} {$list}（{$task->dueLabel($today)}）";
+            }
+            if ($groups[$key]->count() > 10) {
+                $lines[] = '・他'.($groups[$key]->count() - 10).'件';
+            }
+        }
+
+        $later = $groups->get('later', collect())->count();
+        $none = $groups->get('none', collect())->count();
+        if ($later || $none) {
+            $lines[] = '';
+            $lines[] = trim(($later ? "🗓 それ以降 {$later}件　" : '').($none ? "📝 期限なし {$none}件" : ''));
+        }
+
+        $lines[] = '';
+        $lines[] = route('tasks.index');
+
+        return implode("\n", $lines);
     }
 
     /**

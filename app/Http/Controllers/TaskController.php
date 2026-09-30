@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Console\Commands\RemindRoutines;
 use App\Models\Task;
+use App\Services\DiscordWebhook;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -126,15 +128,51 @@ class TaskController extends Controller
         return back()->with('status', "完了済みを{$count}件片付けました。");
     }
 
-    /** 期限の朝の通知（何時に鳴らすか / 鳴らさないか） */
+    /** 通知の設定（何時に送るか / Discord Webhook） */
     public function settings(Request $request)
     {
         $data = $request->validate([
             'task_notify_hour' => ['nullable', 'integer', 'between:0,23'],
+            // 宛先を Discord に固定する（SSRF対策。任意のURLにはサーバーから投稿させない）
+            'discord_webhook_url' => ['nullable', 'string', 'max:300', function ($attr, $value, $fail) {
+                if (! DiscordWebhook::isValidUrl($value)) {
+                    $fail('Discord の Webhook URL（https://discord.com/api/webhooks/…）を貼り付けてください。');
+                }
+            }],
+            'discord_clear' => ['nullable', 'boolean'],
         ]);
-        $request->user()->update(['task_notify_hour' => $data['task_notify_hour'] ?? null]);
+
+        $update = ['task_notify_hour' => $data['task_notify_hour'] ?? null];
+
+        // 空欄なら今の設定を保つ（URLは画面に出さないので、毎回入れ直させない）
+        if ($request->boolean('discord_clear')) {
+            $update['discord_webhook_url'] = null;
+        } elseif (filled($data['discord_webhook_url'] ?? null)) {
+            $update['discord_webhook_url'] = trim($data['discord_webhook_url']);
+        }
+
+        $request->user()->update($update);
 
         return back()->with('status', '通知設定を保存しました。');
+    }
+
+    /** Discord にいまのまとめを試しに送る */
+    public function discordTest(Request $request, DiscordWebhook $discord)
+    {
+        $user = $request->user();
+
+        if (! $user->discord_webhook_url) {
+            return back()->withErrors(['discord_webhook_url' => '先に Webhook URL を保存してください。']);
+        }
+
+        $open = $user->tasks()->whereNull('done_at')->ordered()->get();
+        $content = $open->isEmpty()
+            ? '✅ 身内ポータルのタスク通知のテストです（いま未完了のタスクはありません）。'
+            : RemindRoutines::taskDigest($open, now());
+
+        return $discord->send($user->discord_webhook_url, $content)
+            ? back()->with('status', 'Discord に送信しました。')
+            : back()->withErrors(['discord_webhook_url' => 'Discord に送れませんでした。Webhook が削除されていないか確認してください。']);
     }
 
     private function validated(Request $request): array

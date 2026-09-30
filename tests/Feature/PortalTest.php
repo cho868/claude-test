@@ -1099,4 +1099,57 @@ class PortalTest extends TestCase
         Carbon::setTestNow();
         @unlink(storage_path('app/'.\App\Services\SetupStatus::REMIND_STAMP));
     }
+
+    public function test_task_digest_goes_to_discord_daily_and_webhook_url_is_restricted(): void
+    {
+        \Illuminate\Support\Facades\Http::fake(['discord.com/*' => \Illuminate\Support\Facades\Http::response('', 204)]);
+        $me = User::factory()->create(['task_notify_hour' => 8]);
+
+        // Discord の Webhook 以外は登録できない（サーバーから任意URLへ投稿させない）
+        foreach (['http://192.168.1.1/api/webhooks/1/x', 'https://example.com/api/webhooks/1/abc', 'https://discord.com.evil.test/api/webhooks/1/abc'] as $bad) {
+            $this->actingAs($me)->post(route('tasks.settings'), [
+                'task_notify_hour' => 8, 'discord_webhook_url' => $bad,
+            ])->assertSessionHasErrors('discord_webhook_url');
+        }
+        $url = 'https://discord.com/api/webhooks/123456/secret-TOKEN_abc';
+        $this->actingAs($me)->post(route('tasks.settings'), ['task_notify_hour' => 8, 'discord_webhook_url' => $url])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($url, $me->refresh()->discord_webhook_url);
+
+        // 暗号化して保存され、画面にも出ない
+        $this->assertStringNotContainsString('secret-TOKEN_abc', \DB::table('users')->where('id', $me->id)->value('discord_webhook_url'));
+        $this->actingAs($me)->get(route('tasks.index'))->assertOk()->assertDontSee('secret-TOKEN_abc');
+
+        // 空欄で保存しても消えない。「やめる」で消える（後で確認）
+        $this->actingAs($me)->post(route('tasks.settings'), ['task_notify_hour' => 8])->assertSessionHasNoErrors();
+        $this->assertSame($url, $me->refresh()->discord_webhook_url);
+
+        // 期限がまだ先でも、未完了があれば毎日まとめが届く（Push は鳴らない）
+        $me->tasks()->create(['title' => '保険の証明書を探す', 'list' => '年末調整']);
+        $me->tasks()->create(['title' => '口座に入金', 'due_date' => '2026-10-06']);
+        Carbon::setTestNow('2026-10-01 08:00:00');
+        $this->mockPush()->shouldNotReceive('sendToUser');
+        $this->artisan('routines:remind')->assertSuccessful();
+
+        \Illuminate\Support\Facades\Http::assertSent(function ($request) use ($url) {
+            return $request->url() === $url
+                && str_contains($request['content'], '口座に入金')
+                && str_contains($request['content'], '期限なし 1件')
+                && $request['allowed_mentions'] === ['parse' => []];
+        });
+
+        // 指定時刻以外は送らない
+        Carbon::setTestNow('2026-10-01 09:00:00');
+        $before = count(\Illuminate\Support\Facades\Http::recorded());
+        $this->artisan('routines:remind')->assertSuccessful();
+        $this->assertCount($before, \Illuminate\Support\Facades\Http::recorded());
+
+        Carbon::setTestNow();
+
+        $this->actingAs($me)->post(route('tasks.discord-test'))->assertSessionHasNoErrors();
+        $this->actingAs($me)->post(route('tasks.settings'), ['task_notify_hour' => 8, 'discord_clear' => 1]);
+        $this->assertNull($me->refresh()->discord_webhook_url);
+
+        @unlink(storage_path('app/'.\App\Services\SetupStatus::REMIND_STAMP));
+    }
 }

@@ -169,6 +169,8 @@ Route::middleware('auth')->group(function () {
     Route::post('tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::post('tasks/bulk', [TaskController::class, 'bulk'])->name('tasks.bulk');
     Route::post('tasks/settings', [TaskController::class, 'settings'])->name('tasks.settings');
+    Route::post('tasks/discord-test', [TaskController::class, 'discordTest'])
+        ->middleware('throttle:6,1')->name('tasks.discord-test');
     Route::delete('tasks/done', [TaskController::class, 'clearDone'])->name('tasks.clear-done');
     Route::post('tasks/{task}/toggle', [TaskController::class, 'toggle'])->name('tasks.toggle');
     Route::put('tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
