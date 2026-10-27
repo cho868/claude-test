@@ -14,6 +14,8 @@
 #     ④ 攻撃っぽいパスが2xxを返していないか
 #     ⑤ ログインに成功したIPは身内だけか
 #     ⑥ SSHに他人が入っていないか
+#   加えて ⓿ で PHP本体に既知の緊急脆弱性のパッチが当たっているかを見る。
+#   （アプリをどう固めても、PHP本体がRCEなら全部無意味なので最初に出す）
 set -uo pipefail
 
 APP_DIR="${APP_DIR:-/var/www/portal}"
@@ -43,6 +45,56 @@ extract_ip() {
 }
 
 printf '\033[1m🛡  身内ポータル セキュリティ点検\033[0m  %s\n' "$(date '+%Y-%m-%d %H:%M')"
+
+# ===== ⓿ PHP本体のパッチ状況 =====
+# 既知の緊急脆弱性の修正版。新しいものが出たらここを更新する。
+#   php2shell (CVE-2026-109618 / CVE-2026-109619, 2026-10-21公開・CVSSv4 9.2)
+#   未認証RCE。PHP-FPMも対象で、リクエストがアプリコードに到達する前に発火するため
+#   Laravel側の対策（認証・招待コード・SafeUrl）は一切効かない。PHP本体の更新が唯一の対処。
+php_branch_min() {
+  case "$1" in
+    8.5) echo 8.5.12 ;;
+    8.4) echo 8.4.27 ;;
+    8.3) echo 8.3.36 ;;
+    8.2) echo 8.2.35 ;;
+    *)   echo "" ;;          # 8.1以下はEOL（修正版が出ない）
+  esac
+}
+# $1=ラベル $2=バージョン文字列
+php_ver_verdict() {
+  local label="$1" v="$2" branch min
+  if [ -z "$v" ]; then note "$label: バージョンを取得できませんでした"; return; fi
+  branch="$(printf '%s' "$v" | cut -d. -f1,2)"
+  min="$(php_branch_min "$branch")"
+  if [ -z "$min" ]; then
+    bad "$label $v — サポート終了ブランチ。修正版が出ないのでPHPごと上げる必要があります"
+    return
+  fi
+  # dpkg があれば正しい数値比較ができる（8.5.4 < 8.5.12 を文字列比較で間違えないため）
+  local newer
+  if command -v dpkg >/dev/null; then
+    dpkg --compare-versions "$v" ge "$min" && newer=1 || newer=0
+  else
+    [ "$(printf '%s\n%s\n' "$min" "$v" | sort -V | head -1)" = "$min" ] && newer=1 || newer=0
+  fi
+  if [ "$newer" -eq 1 ]; then
+    ok "$label $v（$min 以上 → php2shell 対策済み）"
+  else
+    bad "$label $v — ★未パッチ！ $min 以上に更新してください（php2shell: 未認証RCE）"
+  fi
+}
+
+hr "⓿ PHP本体のパッチ状況（アプリ以前の問題なので最優先）"
+php_ver_verdict "CLI  " "$(php -r 'echo PHP_VERSION;' 2>/dev/null)"
+# FPMはCLIと別バイナリなので必ず別に確認する（片方だけ古いことが実際にある）
+FPM_FOUND=0
+for b in /usr/sbin/php-fpm* /usr/local/sbin/php-fpm*; do
+  [ -x "$b" ] || continue
+  FPM_FOUND=1
+  php_ver_verdict "FPM $(basename "$b")" "$("$b" -v 2>/dev/null | head -1 | awk '{print $2}')"
+done
+[ "$FPM_FOUND" -eq 0 ] && note "php-fpm のバイナリが見つかりませんでした（手動確認: php-fpm8.5 -v）"
+note "更新: sudo apt-get update && sudo apt-get install --only-upgrade 'php8.5-*' && sudo systemctl restart php8.5-fpm"
 
 # ===== --ip: 指定IPが何をしたか全部出す =====
 if [ -n "$TARGET_IP" ]; then
