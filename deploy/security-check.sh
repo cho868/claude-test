@@ -84,17 +84,56 @@ php_ver_verdict() {
   fi
 }
 
+PHP2SHELL_CVE='CVE-2026-109618|CVE-2026-109619'
+
+# ★Debian/Ubuntu は upstream のバージョンを上げずに修正だけをバックポートする。
+#   （例: Ubuntu 26.04 の php8.5 は 8.5.4-0ubuntu1.5 のまま php2shell が修正済み）
+#   なので `php -v` の数字で判定すると必ず誤判定する。
+#   パッケージの変更履歴に CVE番号 が載っているかで判定するのが唯一確実。
+distro_changelog_verdict() {
+  local f hit="" pkgver=""
+  for f in /usr/share/doc/php*-fpm/changelog.Debian.gz /usr/share/doc/php*-cli/changelog.Debian.gz \
+           /usr/share/doc/php*-common/changelog.Debian.gz; do
+    [ -f "$f" ] || continue
+    if zgrep -qE "$PHP2SHELL_CVE" "$f" 2>/dev/null; then hit="$f"; break; fi
+    hit="${hit:-none}"
+  done
+  [ -z "$hit" ] && return 1          # 変更履歴が無い＝ディストロ管理外。upstream比較にフォールバック
+
+  if command -v dpkg-query >/dev/null; then
+    # 未インストールのパッケージは版が空で出るので NF==2 の行だけ採る
+    local p
+    for p in 'php*-fpm' 'php*-cli' 'php*-common'; do
+      pkgver="$(dpkg-query -W -f='${Package} ${Version}\n' $p 2>/dev/null | awk 'NF==2{print $1" "$2; exit}')"
+      [ -n "$pkgver" ] && break
+    done
+  fi
+  if [ "$hit" = "none" ]; then
+    bad "パッケージ版 ${pkgver:-?} — 変更履歴に php2shell のCVEが見当たりません（未適用の疑い）"
+    note "確認: sudo apt-get update && apt-cache policy php8.5-fpm"
+  else
+    ok "パッケージ版 ${pkgver:-?} — 変更履歴に php2shell のCVE記載あり → 修正適用済み"
+    note "根拠: $hit"
+  fi
+  return 0
+}
+
 hr "⓿ PHP本体のパッチ状況（アプリ以前の問題なので最優先）"
-php_ver_verdict "CLI  " "$(php -r 'echo PHP_VERSION;' 2>/dev/null)"
-# FPMはCLIと別バイナリなので必ず別に確認する（片方だけ古いことが実際にある）
-FPM_FOUND=0
-for b in /usr/sbin/php-fpm* /usr/local/sbin/php-fpm*; do
-  [ -x "$b" ] || continue
-  FPM_FOUND=1
-  php_ver_verdict "FPM $(basename "$b")" "$("$b" -v 2>/dev/null | head -1 | awk '{print $2}')"
-done
-[ "$FPM_FOUND" -eq 0 ] && note "php-fpm のバイナリが見つかりませんでした（手動確認: php-fpm8.5 -v）"
-note "更新: sudo apt-get update && sudo apt-get install --only-upgrade 'php8.5-*' && sudo systemctl restart php8.5-fpm"
+note "upstream版: CLI $(php -r 'echo PHP_VERSION;' 2>/dev/null) / FPM $(for b in /usr/sbin/php-fpm*; do [ -x "$b" ] && "$b" -v 2>/dev/null | head -1 | awk '{print $2}' && break; done)"
+if distro_changelog_verdict; then
+  note "※Ubuntu/Debian は修正をバックポートするため upstream版の数字は上がりません。判定は変更履歴で行っています"
+else
+  note "ディストロのパッケージではないため upstream版で判定します"
+  php_ver_verdict "CLI  " "$(php -r 'echo PHP_VERSION;' 2>/dev/null)"
+  # FPMはCLIと別バイナリなので必ず別に確認する（片方だけ古いことが実際にある）
+  FPM_FOUND=0
+  for b in /usr/sbin/php-fpm* /usr/local/sbin/php-fpm*; do
+    [ -x "$b" ] || continue
+    FPM_FOUND=1
+    php_ver_verdict "FPM $(basename "$b")" "$("$b" -v 2>/dev/null | head -1 | awk '{print $2}')"
+  done
+  [ "$FPM_FOUND" -eq 0 ] && note "php-fpm のバイナリが見つかりませんでした（手動確認: php-fpm8.5 -v）"
+fi
 
 # ===== --ip: 指定IPが何をしたか全部出す =====
 if [ -n "$TARGET_IP" ]; then
