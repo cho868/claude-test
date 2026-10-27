@@ -149,15 +149,29 @@ fi
 # ===== ② ファイル改ざん =====
 hr "② ファイルの改ざんチェック"
 if [ -d "$APP_DIR/.git" ]; then
-  DIFF="$(git -C "$APP_DIR" status --porcelain 2>/dev/null | grep -vE '^\?\? (storage/|bootstrap/cache/|\.env)' || true)"
-  if [ -z "$DIFF" ]; then
-    ok "git管理下のファイルに変更なし（＝ソースは改ざんされていない）"
+  # safe.directory: デプロイはrootなので所有者がズレても読めるようにしておく
+  GIT="git -c safe.directory=$APP_DIR -C $APP_DIR"
+  ST="$($GIT status --porcelain 2>/dev/null || true)"
+
+  # 「追跡中ファイルの書き換え/削除」＝本物の改ざん。ここだけが🚨。
+  TRACKED="$(printf '%s\n' "$ST" | grep -vE '^(\?\?|$)' || true)"
+  if [ -z "$TRACKED" ]; then
+    ok "git管理下のファイルは未改変（＝ソースは改ざんされていない）"
   else
-    bad "git管理下のファイルに差分があります:"
-    printf '%s\n' "$DIFF" | head -20 | sed 's/^/     /'
-    note "自分で編集した覚えがなければ要調査: git -C $APP_DIR diff"
+    bad "git管理下のファイルが書き換えられています:"
+    printf '%s\n' "$TRACKED" | head -20 | sed 's/^/     /'
+    note "身に覚えがなければ: $GIT diff"
   fi
-  note "現在のコミット: $(git -C "$APP_DIR" log -1 --format='%h %s' 2>/dev/null)"
+
+  # 「未追跡ファイル」＝自分で置いた物のことが多いので、出すだけで判定は落とさない。
+  # （Webshellは public/ のPHP検査のほうで捕まえる）
+  UNTRACKED="$(printf '%s\n' "$ST" | grep -E '^\?\?' | grep -vE '^\?\? (storage/|bootstrap/cache/|\.env)' || true)"
+  if [ -n "$UNTRACKED" ]; then
+    note "git管理外のファイル（自分で置いたものなら正常）:"
+    printf '%s\n' "$UNTRACKED" | head -10 | sed 's/^/     /'
+    note "身に覚えがなければ所有者と中身を確認: sudo stat -c '%U:%G %y %n' <パス>"
+  fi
+  note "現在のコミット: $($GIT log -1 --format='%h %s' 2>/dev/null)"
 else
   note "$APP_DIR はgitリポジトリではないのでスキップ"
 fi
